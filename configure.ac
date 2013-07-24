@@ -55,7 +55,7 @@ dnl if the user has not set CXXFLAGS, then set our own default
 dnl-------------------------------------------------------------------
 USE_CUSTOM_FLAGS="yes"
 if [[ "x$CXXFLAGS" == "x" ]]; then
-   CXXFLAGS="-O3 -Wall"
+   CXXFLAGS="-std=c++11 -O3 -Wall"
    USE_CUSTOM_FLAGS="no"
 fi
 

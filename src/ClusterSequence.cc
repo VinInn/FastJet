@@ -210,6 +210,13 @@ void ClusterSequence::_initialise_and_run (
 //----------------------------------------------------------------------
 void ClusterSequence::_initialise_and_run_no_decant () {
 
+
+  static bool once=true;
+  if (once) {
+    once=false;
+    std::cout << "Vin version of FASTJET" << std::endl;
+  }
+
   // set up the history entries for the initial particles (those
   // currently in _jets)
   _fill_initial_history();
