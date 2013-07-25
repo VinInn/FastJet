@@ -692,7 +692,7 @@ protected:
 
   //
   void _minheap_faster_tiled_N2_cluster();
-
+  void _minheap_optimized_tiled_N2_cluster();
   // things needed specifically for Cambridge with Chan's 2D closest
   // pairs method
   void _CP2DChan_cluster();
