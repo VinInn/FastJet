@@ -180,7 +180,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   while (n > 0) {
 
     double diJ_min = minheap.minval() *_invR2;
-    auto kA = minheap.minloc();
+    unsigned short kA = minheap.minloc();
     auto jetA = head + kA;
 
     // do the recombination between A and B
@@ -194,14 +194,15 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       // the larger of them == newtail then that ends up being jetA and 
       // the new jet that is added as jetB is inserted in a position that
       // has a future!
-      if (jetA < jetB) {std::swap(jetA,jetB);}
+      if (kA < kB) {std::swap(jetA,jetB); std::swap(kA,kB);}
 
       int nn; // new jet index
       _do_ij_recombination_step(jetA->_jets_index, jetB->_jets_index, diJ_min, nn);
       
       // what was jetB will now become the new jet
-      oldB = * jetB;  // take a copy because we will need it...
- 
+      oldB = *jetB;  // take a copy because we will need it...
+      assert(oldB.tile_index!=NOWHERE);
+
      // _bj_remove_from_tiles(jetA);
       //_bj_remove_from_tiles(jetB);
      removeFromTile(*jetA);
@@ -238,7 +239,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     }
     
     // remove the minheap entry for jetA
-    minheap.remove(jetA-head);
+    minheap.remove(kA);
     
     // first establish the set of tiles over which we are going to
     // have to run searches for updated and new nearest-neighbours --
@@ -254,6 +255,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       }
       if (oldB.tile_index != jetA->tile_index && 
 	  oldB.tile_index != jetB->tile_index) {
+
+	assert(oldB.tile_index!=NOWHERE);
+
 	// GS: the line below generates a warning that oldB.tile_index
 	// may be used uninitialised. However, to reach this point, we
 	// ned jetB != NULL (see test a few lines above) and is jetB
