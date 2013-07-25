@@ -99,7 +99,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       }
       ++kj[index[i]];
     }
-    
+
+    for (unsigned int k=0; k!=_tiles.size(); ++k) assert(kj[k]==_tiles[k].nJets);
+    for (int i = 0; i!=n; ++i) assert( briefjets[i].tile_index!=NOWHERE);  
   }
   OTiledJet oldB;
   
@@ -183,6 +185,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     unsigned short kA = minheap.minloc();
     auto jetA = head + kA;
 
+    assert(jetA->tile_index!=NOWHERE);     
+
     // do the recombination between A and B
     history_location++;
     auto kB = jetA->NN;
@@ -229,7 +233,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
        } else j.next=NOWHERE;
        ti.first=k;
      }
-     
+     assert(jetB->tile_index!=NOWHERE);     
+
     } else {
       // jet-beam recombination
       // get the hist_index
