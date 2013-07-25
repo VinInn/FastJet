@@ -784,12 +784,14 @@ protected:
   void _bj_remove_from_tiles( TiledJet * const jet) const;
 
   /// return the distance between two BriefJet objects
-  template <class J> double _bj_dist(const J * const jeta, 
-			const J * const jetb) const;
+  template <class J> 
+  static auto _bj_dist(const J * const jeta, 
+				   const J * const jetb)->typename std::remove_reference<decltype(jeta->kt2)>::type;
 
   // return the diJ (multiplied by _R2) for this jet assuming its NN
   // info is correct
-  template <class J> double _bj_diJ(const J * const jeta) const;
+  template <class J> 
+  static auto _bj_diJ(const J * const jeta)->typename std::remove_reference<decltype(jeta->kt2)>::type;
 
   /// for testing purposes only: if in the range head--tail-1 there is a
   /// a jet which corresponds to hist_index in the history, then
@@ -984,17 +986,20 @@ template <class J> inline void ClusterSequence::_bj_set_jetinfo(
 
 
 //----------------------------------------------------------------------
-template <class J> inline double ClusterSequence::_bj_dist(
-                const J * const jetA, const J * const jetB) const {
-  double dphi = std::abs(jetA->phi - jetB->phi);
-  double deta = (jetA->eta - jetB->eta);
-  if (dphi > pi) {dphi = twopi - dphi;}
+template <class J> 
+inline auto 
+ClusterSequence::_bj_dist( const J * const jetA, const J * const jetB)->typename std::remove_reference<decltype(jetA->kt2)>::type  {
+   typedef typename std::remove_reference<decltype(jetA->phi)>::type T;
+  auto dphi = std::abs(jetA->phi - jetB->phi);
+  auto deta = (jetA->eta - jetB->eta);
+  if (dphi > T(pi)) {dphi = T(twopi) - dphi;}
   return dphi*dphi + deta*deta;
 }
 
 //----------------------------------------------------------------------
-template <class J> inline double ClusterSequence::_bj_diJ(const J * const jet) const {
-  double kt2 = jet->kt2;
+template <class J> 
+inline auto ClusterSequence::_bj_diJ(const J * const jet)->typename std::remove_reference<decltype(jet->kt2)>::type {
+  auto kt2 = jet->kt2;
   if (jet->NN != NULL) {if (jet->NN->kt2 < kt2) {kt2 = jet->NN->kt2;}}
   return jet->NN_dist * kt2;
 }
@@ -1005,11 +1010,11 @@ template <class J> inline double ClusterSequence::_bj_diJ(const J * const jet) c
 // have discovered a new nearest neighbour for another jet
 template <class J> inline void ClusterSequence::_bj_set_NN_nocross(
                  J * const jet, J * const head, const J * const tail) const {
-  double NN_dist = _R2;
+  auto NN_dist = _R2;
   J * NN  = NULL;
   if (head < jet) {
     for (J * jetB = head; jetB != jet; jetB++) {
-      double dist = _bj_dist(jet,jetB);
+      auto dist = _bj_dist(jet,jetB);
       if (dist < NN_dist) {
 	NN_dist = dist;
 	NN = jetB;
@@ -1018,7 +1023,7 @@ template <class J> inline void ClusterSequence::_bj_set_NN_nocross(
   }
   if (tail > jet) {
     for (J * jetB = jet+1; jetB != tail; jetB++) {
-      double dist = _bj_dist(jet,jetB);
+      auto dist = _bj_dist(jet,jetB);
       if (dist < NN_dist) {
 	NN_dist = dist;
 	NN = jetB;
@@ -1033,10 +1038,10 @@ template <class J> inline void ClusterSequence::_bj_set_NN_nocross(
 //----------------------------------------------------------------------
 template <class J> inline void ClusterSequence::_bj_set_NN_crosscheck(J * const jet, 
 		    J * const head, const J * const tail) const {
-  double NN_dist = _R2;
+  auto NN_dist = _R2;
   J * NN  = NULL;
   for (J * jetB = head; jetB != tail; jetB++) {
-    double dist = _bj_dist(jet,jetB);
+    auto dist = _bj_dist(jet,jetB);
     if (dist < NN_dist) {
       NN_dist = dist;
       NN = jetB;

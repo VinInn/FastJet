@@ -90,14 +90,16 @@ template<> inline void ClusterSequence::_bj_set_jetinfo(
 
 //----------------------------------------------------------------------
 // returns the angular distance between the two jets
-template<> double ClusterSequence::_bj_dist(
-                const EEBriefJet * const jeta, 
-                const EEBriefJet * const jetb) const {
-  double dist = 1.0 
+template<> auto 
+ClusterSequence::_bj_dist(const EEBriefJet * const jeta, const EEBriefJet * const jetb) 
+  ->typename std::remove_reference<decltype(jeta->kt2)>::type {
+  typedef typename std::remove_reference<decltype(jeta->kt2)>::type T;
+
+  auto dist = T(1) 
     - jeta->nx*jetb->nx
     - jeta->ny*jetb->ny
     - jeta->nz*jetb->nz;
-  dist *= 2; // distance is _2_*min(Ei^2,Ej^2)*(1-cos theta)
+  dist *= T(2); // distance is _2_*min(Ei^2,Ej^2)*(1-cos theta)
   return dist;
 }
 
