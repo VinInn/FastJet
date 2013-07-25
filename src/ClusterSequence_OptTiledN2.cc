@@ -78,7 +78,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     int i=0; int t=0;
     for (auto & tile : _tiles) {
       tile.first=i; i+=tile.nJets;
-      kj[t++]=i;
+      kj[t++]=tile.first;
     }
     
     assert(i==n);
@@ -177,6 +177,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       briefjets[jet.next].prev=jet.prev;
     }
     assert(_tiles[jet.tile_index].nJets>=0);
+    if (0==_tiles[jet.tile_index].nJets) assert(_tiles[jet.tile_index].first==NOWHERE);
+
   };
 
   while (n > 0) {
@@ -286,6 +288,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       Tile * tile_ptr = &_tiles[tile_union[itile]];
       tile_ptr->tagged = false; // reset tag, since we're done with unions
       // run over all jets in the current tile
+      if (tile_ptr->nJets>0)
       for (int iI = tile_ptr->first; iI != NOWHERE; iI = briefjets[iI].next) {
 	auto jetI = &briefjets[iI];
 	// see if jetI had jetA or jetB as a NN -- if so recalculate the NN
@@ -300,7 +303,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	  for (Tile ** near_tile  = tile_ptr->begin_tiles; 
 	       near_tile != tile_ptr->end_tiles; near_tile++) {
 	    // and then over the contents of that tile
-	    for (auto iJ  = (*near_tile)->first; 
+	    if ((*near_tile)->nJets>0)
+ 	    for (auto iJ  = (*near_tile)->first; 
 		 iJ != NOWHERE; iJ = briefjets[iJ].next) {
 	      auto jetJ = &briefjets[iJ];
 	      double dist = _bj_dist(jetI,jetJ);
