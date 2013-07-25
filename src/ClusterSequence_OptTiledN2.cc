@@ -100,7 +100,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       ++kj[index[i]];
     }
 
-    for (unsigned int k=0; k!=_tiles.size(); ++k) assert(kj[k]==tile.first+_tiles[k].nJets);
+    for (unsigned int k=0; k!=_tiles.size(); ++k) assert(kj[k]==_tiles[k].first+_tiles[k].nJets);
     for (int i = 0; i!=n; ++i) assert( briefjets[i].tile_index!=NOWHERE);  
   }
   OTiledJet oldB;
