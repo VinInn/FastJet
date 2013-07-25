@@ -48,6 +48,8 @@ namespace opti_details {
   };
   */
 
+
+
 }
 
 
@@ -63,7 +65,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   
 
   int n = _jets.size();
-  int oirN = n;
+  int oriN = n;
   OTiledJet briefjets[n];
   
   {
@@ -77,7 +79,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     unsigned int kj[_tiles.size()]; 
     int i=0; int t=0;
     for (auto & tile : _tiles) {
-      tile.first=i; i+=tile.nJets;
+      if(tile.nJets>0){ 
+	tile.first=i; i+=tile.nJets;
+      }
       kj[t++]=tile.first;
     }
     
@@ -103,6 +107,31 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     for (unsigned int k=0; k!=_tiles.size(); ++k) assert(kj[k]==_tiles[k].first+_tiles[k].nJets);
     for (int i = 0; i!=n; ++i) assert( briefjets[i].tile_index!=NOWHERE);  
   }
+
+
+    //
+    auto verify = [&]() {
+      for (auto & tile : _tiles) {
+	if (0==tile.nJets) assert(tile.first!=NOWHERE);
+	else {
+	  assert(tile.first!=NOWHERE);
+	  assert(tile.first < oriN);
+	  int k=0;
+	  auto p = NOWHERE;
+	  for (int iI = tile.first; iI != NOWHERE; iI = briefjets[iI].next) {
+	    assert(briefjets[iI].prev==p); p=iI;
+	    ++k;
+	    if (k<tile.nJets) assert(briefjets[iI].next!=NOWHERE);
+	    else assert(briefjets[iI].next==NOWHERE);	    
+	  }
+	  assert(k==tile.nJets);		    
+	}
+      }
+    };
+
+
+    verify();
+
   OTiledJet oldB;
   
   // define it locally
@@ -280,7 +309,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       jets_for_minheap.push_back(kB);
     }
     
-    
+    verify();
+
     // Initialise jetB's NN distance as well as updating it for 
     // other particles.
     // Run over all tiles in our union 
@@ -338,6 +368,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       }
     }
     
+    verify();
+
     // deal with jets whose minheap entry needs updating
     while (jets_for_minheap.size() > 0) {
       auto iI = jets_for_minheap.back(); 
@@ -349,7 +381,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   }
   
   
-  std::cout << "jet done " << _tiles.size() << " " << oirN << " " << _jets.size() << std::endl;
+  std::cout << "jet done " << _tiles.size() << " " << oriN << " " << _jets.size() << std::endl;
   
   
 }
