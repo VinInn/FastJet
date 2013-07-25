@@ -337,9 +337,11 @@ void ClusterSequence::_initialise_and_run_no_decant () {
     // BriefJet provides standard long.invariant kt alg.
     this->_simple_N2_cluster_BriefJet();
   } else if (_strategy == N2Tiled) {
-    this->_faster_tiled_N2_cluster();
+    _minheap_optimized_tiled_N2_cluster();
+    // this->_faster_tiled_N2_cluster();
   } else if (_strategy == N2MinHeapTiled) {
-    this->_minheap_faster_tiled_N2_cluster();
+    _minheap_optimized_tiled_N2_cluster();
+      // this->_minheap_faster_tiled_N2_cluster();
   } else if (_strategy == NlnN) {
     this->_delaunay_cluster();
   } else if (_strategy == NlnNCam) {
@@ -391,6 +393,8 @@ void ClusterSequence::print_banner() {
   (*ostr) << "#                 M. Cacciari, G.P. Salam and G. Soyez                  \n"; 
   (*ostr) << "#     A software package for jet finding and analysis at colliders      \n";
   (*ostr) << "#                           http://fastjet.fr                           \n"; 
+  (*ostr) << "#	                                                                      \n";
+  (*ostr) << "#	                Vincenzo Innocente Version!!!!                        \n";
   (*ostr) << "#	                                                                      \n";
   (*ostr) << "# Please cite EPJC72(2012)1896 [arXiv:1111.6097] if you use this package\n";
   (*ostr) << "# for scientific work and optionally PLB641(2006)57 [hep-ph/0512210].   \n";

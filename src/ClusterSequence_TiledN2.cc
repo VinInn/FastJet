@@ -939,3 +939,4 @@ void ClusterSequence::_minheap_faster_tiled_N2_cluster() {
 
 FASTJET_END_NAMESPACE
 
+#include "ClusterSequence_OptTiledN2.cc"
