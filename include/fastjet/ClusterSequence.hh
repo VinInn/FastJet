@@ -843,7 +843,11 @@ protected:
     /// just beyond end of tiles
     Tile **  end_tiles; 
     /// start of list of BriefJets contained in this tile
-    TiledJet * head;    
+    TiledJet * head;
+
+    // index of first and last 
+    unsigned short first=62001, nJets=0;
+
     /// sometimes useful to be able to tag a tile
     bool     tagged;    
   };
