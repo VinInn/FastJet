@@ -11,6 +11,8 @@
 
 FASTJET_BEGIN_NAMESPACE      // defined in fastjet/internal/base.hh
 
+#define likely(x) (__builtin_expect(x, true))
+#define unlikely(x) (__builtin_expect(x, false))
 
 namespace opti_details {
 
@@ -116,8 +118,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       ++kj[index[i]];
     }
 
-    for (unsigned int k=0; k!=_tiles.size(); ++k) assert(kj[k]==_tiles[k].first+_tiles[k].nJets);
-    for (int i = 0; i!=n; ++i) assert( briefjets[i].tile_index!=NOWHERE);  
+    // for (unsigned int k=0; k!=_tiles.size(); ++k) assert(kj[k]==_tiles[k].first+_tiles[k].nJets);
+    // for (int i = 0; i!=n; ++i) assert( briefjets[i].tile_index!=NOWHERE);  
   }
 
 
@@ -237,7 +239,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
     unsigned int oldIndex = NOWHERE;
 
-    if (jetB != nullptr) {
+    if likely(jetB != nullptr) {
 
       // assert(kB!=NOWHERE);
       // assert(kA!=NOWHERE);
@@ -315,7 +317,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     int n_near_tiles = 0;
     _add_untagged_neighbours_to_tile_union(jetA->tile_index, 
 					   tile_union, n_near_tiles);
-    if (jetB != nullptr) {
+    if likely(jetB != nullptr) {
       if (jetB->tile_index != jetA->tile_index) {
 	_add_untagged_neighbours_to_tile_union(jetB->tile_index,
 					       tile_union,n_near_tiles);
@@ -339,7 +341,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       Tile * tile_ptr = &_tiles[tile_union[itile]];
       tile_ptr->tagged = false; // reset tag, since we're done with unions
       // run over all jets in the current tile
-      if (tile_ptr->nJets>0)
+      // if likely(tile_ptr->nJets>0)
       for (int iI = tile_ptr->first; iI != NOWHERE; iI = briefjets[iI].next) {
 	auto jetI = &briefjets[iI];
 	// see if jetI had jetA or jetB as a NN -- if so recalculate the NN
@@ -355,7 +357,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	  for (Tile ** near_tile  = tile_ptr->begin_tiles; 
 	       near_tile != tile_ptr->end_tiles; near_tile++) {
 	    // and then over the contents of that tile
-	    if ((*near_tile)->nJets>0)
+	    // if likely((*near_tile)->nJets>0)
  	    for (auto iJ  = (*near_tile)->first; 
 		 iJ != NOWHERE; iJ = briefjets[iJ].next) {
 	      auto jetJ = &briefjets[iJ];
@@ -369,7 +371,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	// check whether new jetB is closer than jetI's current NN and
 	// if jetI is closer than jetB's current (evolving) nearest
 	// neighbour. Where relevant update things
-	if (jetB != nullptr) {
+	if likely(jetB != nullptr) {
 	  auto dist = _bj_dist(jetI,jetB);
 	  if (dist < jetI->NN_dist) {
 	    if (jetI != jetB) {
