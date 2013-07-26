@@ -145,10 +145,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     // verify();
     // std::cout << " level 1" << std::endl;
 
-  OTiledJet oldB;
   
   // define it locally
-  auto bj_diJ = [&](OTiledJet const * const jet)->double  {
+  auto bj_diJ = [&](OTiledJet const * const jet)->float  {
     auto kt2 = jet->kt2;
     kt2 = (jet->NN != NOWHERE) ? std::min(kt2,briefjets[jet->NN].kt2) : kt2; 
     return jet->NN_dist * kt2;
@@ -166,7 +165,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       auto  & jetA = briefjets[jA];
       for (auto jB =tile.first; jB!=jA; ++jB) {
 	auto  & jetB = briefjets[jB];
-	double dist = _bj_dist(&jetA,&jetB);
+	auto dist = _bj_dist(&jetA,&jetB);
 	if (dist < jetA.NN_dist) {jetA.NN_dist = dist; jetA.NN = jB;}
 	if (dist < jetB.NN_dist) {jetB.NN_dist = dist; jetB.NN = jA;}
       }
@@ -178,7 +177,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	auto & jetA = briefjets[jA];
 	for (int jB=rtile.first; jB!=rtile.first+rtile.nJets; ++jB) {
 	  auto & jetB = briefjets[jB];
-	  double dist = _bj_dist(&jetA,&jetB);
+	  auto dist = _bj_dist(&jetA,&jetB);
 	  if (dist < jetA.NN_dist) {jetA.NN_dist = dist; jetA.NN = jB;}
 	  if (dist < jetB.NN_dist) {jetB.NN_dist = dist; jetB.NN = jA;}
 	}
@@ -218,10 +217,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     if(jet.next!=NOWHERE) {
       briefjets[jet.next].prev=jet.prev;
     }
-    assert(_tiles[jet.tile_index].nJets>=0);
-    if (0==_tiles[jet.tile_index].nJets) assert(_tiles[jet.tile_index].first==NOWHERE);
-    if (_tiles[jet.tile_index].nJets>0) assert(_tiles[jet.tile_index].first!=NOWHERE);
-
+    // assert(_tiles[jet.tile_index].nJets>=0);
+    // if (0==_tiles[jet.tile_index].nJets) assert(_tiles[jet.tile_index].first==NOWHERE);
+    // if (_tiles[jet.tile_index].nJets>0) assert(_tiles[jet.tile_index].first!=NOWHERE);
   };
 
   while (n > 0) {
@@ -230,17 +228,19 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     unsigned short kA = minheap.minloc();
     auto jetA = head + kA;
 
-    assert(jetA->tile_index!=NOWHERE);     
+    // assert(jetA->tile_index!=NOWHERE);     
 
     // do the recombination between A and B
     history_location++;
     auto kB = jetA->NN;
     auto jetB = (kB==NOWHERE) ? nullptr : head + kB;
 
+    unsigned int oldIndex = NOWHERE;
+
     if (jetB != nullptr) {
 
-       assert(kB!=NOWHERE);
-       assert(kA!=NOWHERE);
+      // assert(kB!=NOWHERE);
+      // assert(kA!=NOWHERE);
 	
       // jet-jet recombination
       // If necessary relabel A & B to ensure jetB < jetA, that way if
@@ -254,9 +254,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       assert(nn>=oriN);      
 
       // what was jetB will now become the new jet
-      oldB = *jetB;  // take a copy because we will need it...
-      assert(oldB.tile_index!=NOWHERE);
-
+      oldIndex = jetB->tile_index;  // take a copy because we will need it...
+ 
      // _bj_remove_from_tiles(jetA);
       //_bj_remove_from_tiles(jetB);
      removeFromTile(*jetA);
@@ -266,7 +265,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
      //      _tj_set_jetinfo(jetB, nn); // cause jetB to become _jets[nn]
                                  // (also registers the jet in the tiling)
      {
-       jetB->tile_index=NOWHERE; // just a check
+       // jetB->tile_index=NOWHERE; // just a check
        auto & j = *jetB;
        auto k =  kB;
        j.eta = _jets[nn].rap();
@@ -285,8 +284,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
        } else j.next=NOWHERE;
        ti.first=k;
      }
-     assert(jetB->tile_index!=NOWHERE);
-     assert(_tiles[jetB->tile_index].first!=NOWHERE);     
+     // assert(jetB->tile_index!=NOWHERE);
+     // assert(_tiles[jetB->tile_index].first!=NOWHERE);     
 
     } else {
       // jet-beam recombination
@@ -312,19 +311,10 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	_add_untagged_neighbours_to_tile_union(jetB->tile_index,
 					       tile_union,n_near_tiles);
       }
-      if (oldB.tile_index != jetA->tile_index && 
-	  oldB.tile_index != jetB->tile_index) {
+      if (oldIndex != jetA->tile_index && 
+	  oldIndex != jetB->tile_index) {
 
-	assert(oldB.tile_index!=NOWHERE);
-
-	// GS: the line below generates a warning that oldB.tile_index
-	// may be used uninitialised. However, to reach this point, we
-	// ned jetB != NULL (see test a few lines above) and is jetB
-	// !=NULL, one would have gone through "oldB = *jetB before
-	// (see piece of code ~20 line above), so the index is
-	// initialised. We do not do anything to avoid the warning to
-	// avoid any potential speed impact.
-	_add_untagged_neighbours_to_tile_union(oldB.tile_index,
+	_add_untagged_neighbours_to_tile_union(oldIndex,
 					       tile_union,n_near_tiles);
       }
       // indicate that we'll have to update jetB in the minheap
@@ -360,7 +350,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
  	    for (auto iJ  = (*near_tile)->first; 
 		 iJ != NOWHERE; iJ = briefjets[iJ].next) {
 	      auto jetJ = &briefjets[iJ];
-	      double dist = _bj_dist(jetI,jetJ);
+	      auto dist = _bj_dist(jetI,jetJ);
 	      if (dist < jetI->NN_dist && jetJ != jetI) {
 		jetI->NN_dist = dist; jetI->NN = iJ;
 	      }
@@ -371,7 +361,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	// if jetI is closer than jetB's current (evolving) nearest
 	// neighbour. Where relevant update things
 	if (jetB != nullptr) {
-	  double dist = _bj_dist(jetI,jetB);
+	  auto dist = _bj_dist(jetI,jetB);
 	  if (dist < jetI->NN_dist) {
 	    if (jetI != jetB) {
 	      jetI->NN_dist = dist;
