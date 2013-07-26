@@ -243,15 +243,24 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       // assert(kA!=NOWHERE);
 	
       // jet-jet recombination
-      // If necessary relabel A & B to ensure jetB < jetA, that way if
-      // the larger of them == newtail then that ends up being jetA and 
-      // the new jet that is added as jetB is inserted in a position that
-      // has a future!
-      if (kA < kB) {std::swap(jetA,jetB); std::swap(kA,kB);}
+      // If necessary relabel A & B to ensure jetB < jetA
+      // try to keep active jet close-by
 
       int nn; // new jet index
       _do_ij_recombination_step(jetA->_jets_index, jetB->_jets_index, diJ_min, nn);
-      assert(nn>=oriN);      
+      auto eta = _jets[nn].rap();
+      auto phi = _jets[nn].phi_02pi();
+      auto tin = _tile_index(eta,phi);
+
+      bool remove=true;
+      if (tin==jetB->tile_index) { // in place at kB
+	remove=false;
+      } else if (tin==jetA->tile_index) { // in place at kA
+	std::swap(jetA,jetB); std::swap(kA,kB);
+	remove=false;
+      } else if (kA < kB) {std::swap(jetA,jetB); std::swap(kA,kB);}
+
+
 
       // what was jetB will now become the new jet
       oldIndex = jetB->tile_index;  // take a copy because we will need it...
@@ -259,7 +268,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
      // _bj_remove_from_tiles(jetA);
       //_bj_remove_from_tiles(jetB);
      removeFromTile(*jetA);
-     removeFromTile(*jetB);
+     if (remove) removeFromTile(*jetB);
  
 
      //      _tj_set_jetinfo(jetB, nn); // cause jetB to become _jets[nn]
@@ -267,26 +276,26 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
      {
        // jetB->tile_index=NOWHERE; // just a check
        auto & j = *jetB;
-       auto k =  kB;
-       j.eta = _jets[nn].rap();
-       j.phi = _jets[nn].phi_02pi();
+       j.eta = eta;
+       j.phi = phi;
        j.kt2 = chop(jet_scale_for_algorithm(_jets[nn]));
        j.NN_dist = _R2;
        j.NN = NOWHERE;
        j._jets_index=nn;
-       j.tile_index=_tile_index(j.eta,j.phi);
-       auto & ti = _tiles[j.tile_index];
-       j.prev=NOWHERE;
-       ++ti.nJets;
-       if (ti.nJets>1) {
-	 briefjets[ti.first].prev=k;
-	 j.next= ti.first;
-       } else j.next=NOWHERE;
-       ti.first=k;
+       j.tile_index=tin;
+       if (remove) {
+	 auto & ti = _tiles[tin];
+	 j.prev=NOWHERE;
+	 ++ti.nJets;
+	 if (ti.nJets>1) {
+	   briefjets[ti.first].prev=kB;
+	   j.next= ti.first;
+	 } else j.next=NOWHERE;
+	 ti.first=kB;
+       }
      }
-     // assert(jetB->tile_index!=NOWHERE);
-     // assert(_tiles[jetB->tile_index].first!=NOWHERE);     
-
+       // assert(jetB->tile_index!=NOWHERE);
+       // assert(_tiles[jetB->tile_index].first!=NOWHERE);     
     } else {
       // jet-beam recombination
       // std::cout << "jet-beam " << kA << std::endl;
@@ -313,7 +322,6 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       }
       if (oldIndex != jetA->tile_index && 
 	  oldIndex != jetB->tile_index) {
-
 	_add_untagged_neighbours_to_tile_union(oldIndex,
 					       tile_union,n_near_tiles);
       }
@@ -341,7 +349,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	  // label jetI as needing heap action...
 	  if (!jetI->minheap_update_needed()) {
 	    jetI->label_minheap_update_needed();
-	    jets_for_minheap.push_back(iI);}
+	    jets_for_minheap.push_back(iI);
+	  }
 	  // now go over tiles that are neighbours of I (include own tile)
 	  for (Tile ** near_tile  = tile_ptr->begin_tiles; 
 	       near_tile != tile_ptr->end_tiles; near_tile++) {
