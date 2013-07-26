@@ -18,7 +18,7 @@ namespace opti_details {
 
  class OTiledJet {
   public:
-   float     eta, phi, kt2, NN_dist;
+   float     eta, phi; double kt2, NN_dist;
    unsigned short NN=NOWHERE; 
    unsigned short prev=NOWHERE, next=NOWHERE;
    unsigned short   _jets_index, tile_index=NOWHERE, diJ_posn;
@@ -59,13 +59,23 @@ namespace opti_details {
 void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   using namespace opti_details;
 
+  int n = _jets.size();
+  int oriN = n;
+
+
+  if (n==0) {
+    _minheap_faster_tiled_N2_cluster();
+    std::cout << "jet done " << _tiles.size() << " " << oriN << " " << _jets.size()
+              << " " << _jets[oriN].rap() << "," << _jets[oriN].phi_02pi() << "," << jet_scale_for_algorithm(_jets[oriN])
+       	      << " " <<	_jets[_jets.size()-1].rap() << "," << _jets[_jets.size()-1].phi_02pi()  << "," << jet_scale_for_algorithm(_jets[_jets.size()-1])
+              << std::endl;
+    return;
+  }
 
   _initialise_tiles();
   if (_jets.size()>32000  || _tiles.size() > 62000) return _minheap_faster_tiled_N2_cluster();
   
 
-  int n = _jets.size();
-  int oriN = n;
   OTiledJet briefjets[n];
   
   {
@@ -136,7 +146,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   OTiledJet oldB;
   
   // define it locally
-  auto bj_diJ = [&](OTiledJet const * const jet)  {
+  auto bj_diJ = [&](OTiledJet const * const jet)->double  {
     auto kt2 = jet->kt2;
     kt2 = (jet->NN != NOWHERE) ? std::min(kt2,briefjets[jet->NN].kt2) : kt2; 
     return jet->NN_dist * kt2;
@@ -239,7 +249,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
       int nn; // new jet index
       _do_ij_recombination_step(jetA->_jets_index, jetB->_jets_index, diJ_min, nn);
-      
+      assert(nn>=oriN);      
+
       // what was jetB will now become the new jet
       oldB = *jetB;  // take a copy because we will need it...
       assert(oldB.tile_index!=NOWHERE);
@@ -253,7 +264,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
      //      _tj_set_jetinfo(jetB, nn); // cause jetB to become _jets[nn]
                                  // (also registers the jet in the tiling)
      {
-       jetB->tile_index==NOWHERE; // just a check
+       jetB->tile_index=NOWHERE; // just a check
        auto & j = *jetB;
        auto k =  kB;
        j.eta = _jets[nn].rap();
@@ -277,6 +288,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
     } else {
       // jet-beam recombination
+      // std::cout << "jet-beam " << kA << std::endl;
       // get the hist_index
       _do_iB_recombination_step(jetA->_jets_index, diJ_min);
       // _bj_remove_from_tiles(jetA);
@@ -390,8 +402,10 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   }
   
   
-  std::cout << "jet done " << _tiles.size() << " " << oriN << " " << _jets.size() << std::endl;
-  
+    std::cout << "jet done " << _tiles.size() << " " << oriN << " " << _jets.size()
+              << " " << _jets[oriN].rap() << "," << _jets[oriN].phi_02pi() << "," << jet_scale_for_algorithm(_jets[oriN])
+              << " " << _jets[_jets.size()-1].rap() << "," << _jets[_jets.size()-1].phi_02pi() 	<< "," << jet_scale_for_algorithm(_jets[_jets.size()-1])
+              << std::endl;
   
 }
   
