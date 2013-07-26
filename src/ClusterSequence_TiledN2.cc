@@ -796,7 +796,7 @@ void ClusterSequence::_minheap_faster_tiled_N2_cluster() {
     diJs[i] = _bj_diJ(&briefjets[i]);
     briefjets[i].label_minheap_update_done();
   }
-  MinHeap minheap(diJs);
+  MinHeap<double> minheap(diJs);
   // have a stack telling us which jets we'll have to update on the heap
   vector<TiledJet *> jets_for_minheap;
   jets_for_minheap.reserve(n); 

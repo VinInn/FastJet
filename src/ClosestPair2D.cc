@@ -172,7 +172,7 @@ void ClosestPair2D::_initialize(const std::vector<Coord2D> & positions,
   for (unsigned int i = 0; i < n_positions; i++) {
     mindists2[i] = _points[i].neighbour_dist2;}
   
-  _heap = auto_ptr<MinHeap>(new MinHeap(mindists2, max_size));
+  _heap = auto_ptr<MinHeap<double>>(new MinHeap<double>(mindists2, max_size));
 }
 
 

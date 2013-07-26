@@ -132,7 +132,7 @@ private:
 
 
   triplet<std::auto_ptr<Tree> >  _trees;
-  std::auto_ptr<MinHeap> _heap;
+  std::auto_ptr<MinHeap<double>> _heap;
   std::vector<Point>     _points;
   std::stack<Point *>    _available_points;
 
