@@ -18,7 +18,7 @@ namespace opti_details {
 
  class OTiledJet {
   public:
-   float     eta, phi; double kt2, NN_dist;
+   float     eta, phi, kt2, NN_dist;
    unsigned short NN=NOWHERE; 
    unsigned short prev=NOWHERE, next=NOWHERE;
    unsigned short   _jets_index, tile_index=NOWHERE, diJ_posn;
@@ -48,7 +48,9 @@ namespace opti_details {
   };
   */
 
-
+  template<typename T> T chop(T t) {
+     return std::min(T(1.e24),std::max(T(1.e-24),t));
+  }
 
 }
 
@@ -103,7 +105,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       auto & j = briefjets[k];
       j.eta = _jets[i].rap();
       j.phi = _jets[i].phi_02pi();
-      j.kt2 = jet_scale_for_algorithm(_jets[i]);
+      j.kt2 = chop(jet_scale_for_algorithm(_jets[i]));
       j.NN_dist = _R2;
       j._jets_index=i;
       j.tile_index=index[i];
@@ -269,7 +271,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
        auto k =  kB;
        j.eta = _jets[nn].rap();
        j.phi = _jets[nn].phi_02pi();
-       j.kt2 = jet_scale_for_algorithm(_jets[nn]);
+       j.kt2 = chop(jet_scale_for_algorithm(_jets[nn]));
        j.NN_dist = _R2;
        j.NN = NOWHERE;
        j._jets_index=nn;
