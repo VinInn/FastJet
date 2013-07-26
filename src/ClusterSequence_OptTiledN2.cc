@@ -345,7 +345,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       for (int iI = tile_ptr->first; iI != NOWHERE; iI = briefjets[iI].next) {
 	auto jetI = &briefjets[iI];
 	// see if jetI had jetA or jetB as a NN -- if so recalculate the NN
-	if (jetI->NN == kA || (jetI->NN == kB && jetB != nullptr)) {
+	if unlikely(jetI->NN == kA || (jetI->NN == kB && jetB != nullptr)) {
 	  jetI->NN_dist = _R2;
 	  jetI->NN      = NOWHERE;
 	  // label jetI as needing heap action...
@@ -367,24 +367,25 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	      }
 	    }
 	  }
-	}
+	} // end JetI NN recomputation
 	// check whether new jetB is closer than jetI's current NN and
 	// if jetI is closer than jetB's current (evolving) nearest
 	// neighbour. Where relevant update things
 	if likely(jetB != nullptr) {
 	  auto dist = _bj_dist(jetI,jetB);
-	  if (dist < jetI->NN_dist) {
-	    if (jetI != jetB) {
+	  if unlikely(dist < jetI->NN_dist) {
+	    if likely(jetI != jetB) {
 	      jetI->NN_dist = dist;
 	      jetI->NN = kB;
 	      // label jetI as needing heap action...
 	      if (!jetI->minheap_update_needed()) {
 		jetI->label_minheap_update_needed();
-		jets_for_minheap.push_back(iI);}
+		jets_for_minheap.push_back(iI);
+	      }
 	    }
 	  }
 	  if (dist < jetB->NN_dist) {
-	    if (jetI != jetB) {
+	    if likely(jetI != jetB) {
 	      jetB->NN_dist = dist;
 	      jetB->NN      = iI;}
 	  }
