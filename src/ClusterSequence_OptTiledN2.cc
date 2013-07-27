@@ -107,7 +107,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     // fil with real jets
     for (unsigned int i = 0; i!=n; ++i) {
       auto k = mtls[index[i]];
-      index[i] = k; // point to itlsef...
+      indexNN[i] = k; // point to itlsef...
       auto & j = briefjets[k];
       j.eta = _jets[i].rap();
       j.phi = _jets[i].phi_02pi();
@@ -131,12 +131,12 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       int ti=0;
       for (auto & tile : _tiles) {
 	  assert(tile.first < bsize);
-          assert(tile.first+tile.nJets < bsize);
+          assert(tile.first+tile.nJets <= bsize);
           assert(tile.nJets <= mtls[ti]);
 	  for (int iI = tile.first; iI != tile.first+tile.nJets; ++iI) {
 	    assert(briefjets[iI].tile_index==ti);
 	  }
-          if (tile.nJets < mtls[ti]) assert(briefjets[tile.first+tile.nJets].tile_index==NOWHERE);
+         // if (tile.nJets < mtls[ti]) assert(briefjets[tile.first+tile.nJets].tile_index==NOWHERE);
  
           ++ti;
       }
@@ -225,7 +225,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       indexNN[briefjets[k].jet_index] = k;
     }
     minheap.remove(l);
+    assert(minheap[l]>1.e26);
     briefjets[l].tile_index=NOWHERE;
+    briefjets[l].jet_index=NOWHERE;
     if (l!=k) assert(briefjets[k].tile_index==ti);
     assert(_tiles[ti].nJets>=0);
     assert(_tiles[ti].first!=NOWHERE);
@@ -240,24 +242,36 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
     auto tiA = jetA->tile_index;
     auto jiA = jetA->jet_index;
+
     assert(tiA!=NOWHERE);     
-    assert(jiA!=NOWHERE);     
+    assert(jiA!=NOWHERE);
+     
+    assert(_tiles[tiA].nJets>0);
+    assert(jiA<_jets.size());
+
 
     // do the recombination between A and B
     history_location++;
-    auto kB = indexNN[jetA->NN];
-    auto jetB = (kB==NOWHERE) ? nullptr : head + kB;
+
+
+    auto jiB = jetA->NN;
+    auto kB = (jiB!=NOWHERE) ? indexNN[jetA->NN] : NOWHERE;
+    auto jetB = (jiB!=NOWHERE) ? head + kB : nullptr;
 
     unsigned int oldIndex = NOWHERE;
-    unsigned int jiB = NOWHERE;
 
     if likely(jetB != nullptr) {
+
+      assert(jiB==jetB->jet_index);
 
       assert(kA!=kB);
       assert(kB!=NOWHERE);
       assert(kA!=NOWHERE);
       assert(jetA->jet_index<_jets.size());
       assert(jetB->jet_index<_jets.size());
+      assert(_tiles[jetA->tile_index].nJets>0);
+      assert(_tiles[jetB->tile_index].nJets>0);
+
 
       // jet-jet recombination
       // If necessary relabel A & B to ensure jetB < jetA
@@ -265,6 +279,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
       int nn; // new jet index
       _do_ij_recombination_step(jetA->jet_index, jetB->jet_index, diJ_min, nn);
+       assert(nn<int(2*oriN));
+
       auto eta = _jets[nn].rap();
       auto phi = _jets[nn].phi_02pi();
       auto tin = _tile_index(eta,phi);
@@ -304,10 +320,15 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
      assert(kA+head == jetA);
      assert(_tiles[tiA].nJets>0);
 
+     if (tiA==oldIndex)  assert(_tiles[tiA].nJets>1);
 
      removeFromTile(kA);
 
      assert(_tiles[oldIndex].nJets>0);
+     
+     // recompute kb...
+     kB = indexNN[jiB];
+     jetB = head+kB;
 
      if (!inplace) removeFromTile(kB);
  
