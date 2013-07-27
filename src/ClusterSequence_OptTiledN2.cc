@@ -76,20 +76,16 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
   //reserve at least one place for tile (maybe two...)
   unsigned int tsize = _tiles.size();
-  unsigned int bsize = n+tsize;
 
-  if (n>31000  || bsize > 62000) return _minheap_faster_tiled_N2_cluster();
-  
+ 
 
   // will contain max tile size for each tile
   unsigned int mtls[tsize]; 
 
 
-  OTiledJet briefjets[bsize];
-  unsigned short indexNN[2*n]; // redirection of NN s....
 
 
-  {
+
     unsigned int index[n];
     for (unsigned int i = 0; i< n; i++) {
       index[i]  = _tile_index(_jets[i].rap(),_jets[i].phi_02pi());
@@ -98,11 +94,19 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     
     unsigned int i=0; unsigned int t=0;
     for (auto & tile : _tiles) {
-	tile.first=i; i+=(tile.nJets+1); // one more in each tile
+      tile.first=i; i+=std::max(4,tile.nJets+1); // one more in each tile or at least 4
 	mtls[t++]=tile.first;
     }
     
-    assert(i==bsize);
+    unsigned int bsize = i;
+
+    // too big for 16bits?
+    if (n>31000  || bsize > 62000) return _minheap_faster_tiled_N2_cluster();
+ 
+
+    OTiledJet briefjets[bsize];
+    unsigned short indexNN[2*n]; // redirection of NN s....
+
     
     // fil with real jets
     for (unsigned int i = 0; i!=n; ++i) {
@@ -121,9 +125,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     // for (unsigned int k=0; k!=_tiles.size(); ++k) assert(mtls[k]==_tiles[k].first+_tiles[k].nJets);
     // for (int i = 0; i!=n; ++i) assert( briefjets[i].tile_index!=NOWHERE);  
 
-    for (unsigned int k=0; k!=tsize; ++k) mtls[k]=_tiles[k].nJets+1;  // this is max size
+    for (unsigned int k=0; k!=tsize; ++k) mtls[k]=std::max(4,_tiles[k].nJets+1);  // this is max size
 
-  }
+  
 
 
   /*
@@ -295,8 +299,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	if (mtls[tin]==_tiles[tin].nJets) {
 	  std::cout << "FAILED " << tin << " " << mtls[tin] 
 		    << " "  << jetA->tile_index << " "  << jetB->tile_index << std::endl;
-          _jets.resize(oriN);
-	  return _minheap_faster_tiled_N2_cluster();
+	  // will need to re-adjust everything
+	  // FIXME this is wrong still will may work...  for test
+	  inplace=true; // in place at kB
 	}
 	if (kA < kB) {
 	  std::swap(jetA,jetB); std::swap(kA,kB); tiA = jetA->tile_index;jiA = jetA->jet_index;
