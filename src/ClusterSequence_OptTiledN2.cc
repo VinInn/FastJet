@@ -20,9 +20,9 @@ namespace opti_details {
   
   class OTiledJet {
   public:
-    float     eta, phi, kt2, NN_dist;
+    float     eta, phi, kt2=std::numeric_limits<float>::max(), NN_dist=std::numeric_limits<float>::max();
     unsigned short NN=NOWHERE; 
-    unsigned short   _jets_index, tile_index=NOWHERE;
+    unsigned short   _jets_index=NOWHERE, tile_index=NOWHERE;
     bool update=false;
     inline void label_minheap_update_needed() {update=true;}
     inline void label_minheap_update_done()   {update=false;}
@@ -85,7 +85,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   unsigned int mtls[tsize]; 
 
 
-  OTiledJet briefjets[n];
+  OTiledJet briefjets[bsize];
   
   {
     unsigned int index[n];
@@ -96,10 +96,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     
     unsigned int i=0; unsigned int t=0;
     for (auto & tile : _tiles) {
-      if(tile.nJets>0){ 
 	tile.first=i; i+=(tile.nJets+1); // one more in each tile
-      }
-      mtls[t++]=tile.first;
+	mtls[t++]=tile.first;
     }
     
     assert(i==bsize);
@@ -194,13 +192,13 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
   
  
 
-  float diJs[n];
+  float diJs[bsize];
   for (unsigned int i = 0; i < n; i++) {
     diJs[i] = bj_diJ(&briefjets[i]);
   }
 
 
-  MinHeap<float> minheap(diJs,n);
+  MinHeap<float> minheap(diJs,bsize);
   // have a stack telling us which jets we'll have to update on the heap
   vector<unsigned short> jets_for_minheap;
   jets_for_minheap.reserve(n); 
@@ -215,6 +213,7 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
     // will move last to k...
     --_tiles[ti].nJets;
     auto l = _tiles[ti].first+_tiles[ti].nJets;
+    assert( briefjets[l].tile_index==ti);
     assert(k<=l);
     assert(k>=_tiles[ti].first);
     if (l!=k) {
@@ -245,9 +244,11 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
 
     if likely(jetB != nullptr) {
 
-      // assert(kB!=NOWHERE);
-      // assert(kA!=NOWHERE);
-	
+      assert(kB!=NOWHERE);
+      assert(kA!=NOWHERE);
+      assert(jetA->_jets_index<_jets.size());
+      assert(jetB->_jets_index<_jets.size());
+
       // jet-jet recombination
       // If necessary relabel A & B to ensure jetB < jetA
       // try to keep active jet close-by
