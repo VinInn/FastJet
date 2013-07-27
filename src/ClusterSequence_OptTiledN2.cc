@@ -15,24 +15,20 @@ FASTJET_BEGIN_NAMESPACE      // defined in fastjet/internal/base.hh
 #define unlikely(x) (__builtin_expect(x, false))
 
 namespace opti_details {
-
+  
   constexpr unsigned short NOWHERE = 62001;
-
- class OTiledJet {
+  
+  class OTiledJet {
   public:
-   float     eta, phi, kt2, NN_dist;
-   unsigned short NN=NOWHERE; 
-   unsigned short prev=NOWHERE, next=NOWHERE;
-   unsigned short   _jets_index, tile_index=NOWHERE, diJ_posn;
-   // routines that are useful in the minheap version of tiled
-   // clustering ("misuse" the otherwise unused diJ_posn, so as
-   // to indicate whether jets need to have their minheap entries
-   // updated).
-   inline void label_minheap_update_needed() {diJ_posn = 1;}
-   inline void label_minheap_update_done()   {diJ_posn = 0;}
-   inline bool minheap_update_needed() const {return diJ_posn==1;}
- };
-
+    float     eta, phi, kt2, NN_dist;
+    unsigned short NN=NOWHERE; 
+    unsigned short   _jets_index, tile_index=NOWHERE;
+    bool update=false;
+    inline void label_minheap_update_needed() {update=true;}
+    inline void label_minheap_update_done()   {update=false;}
+    inline bool minheap_update_needed() const {return update;}
+  };
+  
   /*
   struct OTile {
     /// pointers to neighbouring tiles, including self
@@ -63,8 +59,8 @@ namespace opti_details {
 void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   using namespace opti_details;
 
-  int n = _jets.size();
-  int oriN = n;
+  unsigned int n = _jets.size();
+  unsigned  int oriN = n;
 
 
   if (n==0) {
@@ -77,33 +73,40 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   }
 
   _initialise_tiles();
-  if (_jets.size()>32000  || _tiles.size() > 62000) return _minheap_faster_tiled_N2_cluster();
+
+  //reserve at least one place for tile (maybe two...)
+  unsigned int tsize = _tiles.size();
+  unsigned int bsize = n+tsize;
+
+  if (_jets.size()>31000  || bsize > 62000) return _minheap_faster_tiled_N2_cluster();
   
+
+  // will contain max tile size for each tile
+  unsigned int mtls[tsize]; 
+
 
   OTiledJet briefjets[n];
   
   {
     unsigned int index[n];
-    for (int i = 0; i< n; i++) {
+    for (unsigned int i = 0; i< n; i++) {
       index[i]  = _tile_index(_jets[i].rap(),_jets[i].phi_02pi());
       ++(_tiles[index[i]].nJets);
     }
     
-
-    unsigned int kj[_tiles.size()]; 
-    int i=0; int t=0;
+    unsigned int i=0; unsigned int t=0;
     for (auto & tile : _tiles) {
       if(tile.nJets>0){ 
-	tile.first=i; i+=tile.nJets;
+	tile.first=i; i+=(tile.nJets+1); // one more in each tile
       }
-      kj[t++]=tile.first;
+      mtls[t++]=tile.first;
     }
     
-    assert(i==n);
+    assert(i==bsize);
     
-    
-    for (int i = 0; i!=n; ++i) {
-      auto k = kj[index[i]];
+    // fil with real jets
+    for (unsigned int i = 0; i!=n; ++i) {
+      auto k = mtls[index[i]];
       auto & j = briefjets[k];
       j.eta = _jets[i].rap();
       j.phi = _jets[i].phi_02pi();
@@ -111,15 +114,14 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       j.NN_dist = _R2;
       j._jets_index=i;
       j.tile_index=index[i];
-      if (k!=_tiles[index[i]].first) {
-	j.prev = k-1;
-	briefjets[k-1].next=k;
-      }
-      ++kj[index[i]];
+      ++mtls[index[i]];
     }
 
     // for (unsigned int k=0; k!=_tiles.size(); ++k) assert(kj[k]==_tiles[k].first+_tiles[k].nJets);
     // for (int i = 0; i!=n; ++i) assert( briefjets[i].tile_index!=NOWHERE);  
+
+    for (unsigned int k=0; k!=tsize; ++k) mtls[k]=+_tiles[k].nJets+1;  // this is max size
+
   }
 
 
@@ -149,7 +151,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
   
   // define it locally
-  auto bj_diJ = [&](OTiledJet const * const jet)->float  {
+auto bj_diJ = [&](OTiledJet const * const jet)->float  {
     auto kt2 = jet->kt2;
     kt2 = (jet->NN != NOWHERE) ? std::min(kt2,briefjets[jet->NN].kt2) : kt2; 
     return jet->NN_dist * kt2;
@@ -193,9 +195,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
  
 
   float diJs[n];
-  for (int i = 0; i < n; i++) {
+  for (unsigned int i = 0; i < n; i++) {
     diJs[i] = bj_diJ(&briefjets[i]);
-    briefjets[i].label_minheap_update_done();
   }
 
 
@@ -209,20 +210,23 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
   auto head =  briefjets;
 
-  auto removeFromTile = [&](OTiledJet & jet) {
-    --_tiles[jet.tile_index].nJets;
-    if(jet.prev==NOWHERE) { // first...
-      _tiles[jet.tile_index].first=jet.next;
-    } else {
-      briefjets[jet.prev].next=jet.next;
+  auto removeFromTile = [&](unsigned short k) {
+    auto ti = briefjets[k].tile_index;
+    // will move last to k...
+    --_tiles[ti].nJets;
+    auto l = _tiles[ti].first+_tiles[ti].nJets;
+    assert(k<=l);
+    assert(k>=_tiles[ti].first);
+    if (l!=k) {
+      briefjets[k]=briefjets[l];
+      minheap.update(k,minheap[l]);
     }
-    if(jet.next!=NOWHERE) {
-      briefjets[jet.next].prev=jet.prev;
-    }
+    minheap.remove(l);
     // assert(_tiles[jet.tile_index].nJets>=0);
     // if (0==_tiles[jet.tile_index].nJets) assert(_tiles[jet.tile_index].first==NOWHERE);
     // if (_tiles[jet.tile_index].nJets>0) assert(_tiles[jet.tile_index].first!=NOWHERE);
   };
+
 
   while (n > 0) {
 
@@ -254,14 +258,22 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       auto phi = _jets[nn].phi_02pi();
       auto tin = _tile_index(eta,phi);
 
-      bool remove=true;
+      bool inplace=false;
       if (tin==jetB->tile_index) { // in place at kB
-	remove=false;
+	inplace=true;
       } else if (tin==jetA->tile_index) { // in place at kA
 	std::swap(jetA,jetB); std::swap(kA,kB);
-	remove=false;
-      } else if (kA < kB) {std::swap(jetA,jetB); std::swap(kA,kB);}
-
+	inplace=true;
+      } else {  // in a different tile (if there is space!)
+	if (mtls[tin]==_tiles[tin].nJets) {
+	  std::cout << "FAILED " << tin << " " << mtls[tin] 
+		    << " "  << jetA->tile_index << " "  << jetB->tile_index << std::endl;
+	  return _minheap_faster_tiled_N2_cluster();
+	}
+	if (kA < kB) {
+	  std::swap(jetA,jetB); std::swap(kA,kB);
+	}
+      }
 
 
       // what was jetB will now become the new jet
@@ -269,14 +281,19 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
  
      // _bj_remove_from_tiles(jetA);
       //_bj_remove_from_tiles(jetB);
-     removeFromTile(*jetA);
-     if (remove) removeFromTile(*jetB);
+     removeFromTile(kA);
+     if (!inplace) removeFromTile(kB);
  
 
      //      _tj_set_jetinfo(jetB, nn); // cause jetB to become _jets[nn]
                                  // (also registers the jet in the tiling)
      {
-       // jetB->tile_index=NOWHERE; // just a check
+       if (!inplace) {
+	 kB = _tiles[tin].first+_tiles[tin].nJets;
+	 ++_tiles[tin].nJets;
+	 jetB = head+kB;
+       }
+
        auto & j = *jetB;
        j.eta = eta;
        j.phi = phi;
@@ -285,16 +302,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
        j.NN = NOWHERE;
        j._jets_index=nn;
        j.tile_index=tin;
-       if (remove) {
-	 auto & ti = _tiles[tin];
-	 j.prev=NOWHERE;
-	 ++ti.nJets;
-	 if (ti.nJets>1) {
-	   briefjets[ti.first].prev=kB;
-	   j.next= ti.first;
-	 } else j.next=NOWHERE;
-	 ti.first=kB;
-       }
+
      }
        // assert(jetB->tile_index!=NOWHERE);
        // assert(_tiles[jetB->tile_index].first!=NOWHERE);     
@@ -304,11 +312,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       // get the hist_index
       _do_iB_recombination_step(jetA->_jets_index, diJ_min);
       // _bj_remove_from_tiles(jetA);
-      removeFromTile(*jetA);
+      removeFromTile(kA);
     }
     
-    // remove the minheap entry for jetA
-    minheap.remove(kA);
     
     // first establish the set of tiles over which we are going to
     // have to run searches for updated and new nearest-neighbours --
@@ -342,7 +348,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       tile_ptr->tagged = false; // reset tag, since we're done with unions
       // run over all jets in the current tile
       // if likely(tile_ptr->nJets>0)
-      for (int iI = tile_ptr->first; iI != NOWHERE; iI = briefjets[iI].next) {
+      for (auto iI = tile_ptr->first; iI !=tile_ptr->first+tile_ptr->nJets; ++iI) {
 	auto jetI = &briefjets[iI];
 	// see if jetI had jetA or jetB as a NN -- if so recalculate the NN
 	if unlikely(jetI->NN == kA || (jetI->NN == kB && jetB != nullptr)) {
@@ -359,7 +365,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	    // and then over the contents of that tile
 	    // if likely((*near_tile)->nJets>0)
  	    for (auto iJ  = (*near_tile)->first; 
-		 iJ != NOWHERE; iJ = briefjets[iJ].next) {
+		 iJ != (*near_tile)->first+(*near_tile)->nJets; ++iJ) {
 	      auto jetJ = &briefjets[iJ];
 	      auto dist = _bj_dist(jetI,jetJ);
 	      if (dist < jetI->NN_dist && jetJ != jetI) {
