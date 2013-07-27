@@ -20,7 +20,7 @@ namespace opti_details {
   
   class OTiledJet {
   public:
-    float     eta, phi, kt2=std::numeric_limits<float>::max(), NN_dist=std::numeric_limits<float>::max();
+    float     eta, phi, kt2=std::numeric_limits<float>::max(), NN_dist=1.f;
     unsigned short NN=NOWHERE; 
     unsigned short   _jets_index=NOWHERE, tile_index=NOWHERE;
     bool update=false;
@@ -193,7 +193,7 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
  
 
   float diJs[bsize];
-  for (unsigned int i = 0; i < n; i++) {
+  for (unsigned int i = 0; i < bsize; i++) {
     diJs[i] = bj_diJ(&briefjets[i]);
   }
 
@@ -210,10 +210,12 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
 
   auto removeFromTile = [&](unsigned short k) {
     auto ti = briefjets[k].tile_index;
+    assert(ti<_tiles.size());
+    assert(_tiles[ti].nJets>0);
     // will move last to k...
     --_tiles[ti].nJets;
     auto l = _tiles[ti].first+_tiles[ti].nJets;
-    assert( briefjets[l].tile_index==ti);
+    assert(briefjets[l].tile_index==ti);
     assert(k<=l);
     assert(k>=_tiles[ti].first);
     if (l!=k) {
@@ -221,6 +223,7 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
       minheap.update(k,minheap[l]);
     }
     minheap.remove(l);
+    briefjets[l].tile_index=NOWHERE;
     // assert(_tiles[jet.tile_index].nJets>=0);
     // if (0==_tiles[jet.tile_index].nJets) assert(_tiles[jet.tile_index].first==NOWHERE);
     // if (_tiles[jet.tile_index].nJets>0) assert(_tiles[jet.tile_index].first!=NOWHERE);
@@ -233,7 +236,7 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
     unsigned short kA = minheap.minloc();
     auto jetA = head + kA;
 
-    // assert(jetA->tile_index!=NOWHERE);     
+    assert(jetA->tile_index!=NOWHERE);     
 
     // do the recombination between A and B
     history_location++;
@@ -293,6 +296,7 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
 	 kB = _tiles[tin].first+_tiles[tin].nJets;
 	 ++_tiles[tin].nJets;
 	 jetB = head+kB;
+	 assert(jetB->tile_index=NOWHERE);
        }
 
        auto & j = *jetB;
@@ -308,6 +312,10 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
        // assert(jetB->tile_index!=NOWHERE);
        // assert(_tiles[jetB->tile_index].first!=NOWHERE);     
     } else {
+      assert(kA!=NOWHERE);
+      assert(jetA->_jets_index<_jets.size());
+
+
       // jet-beam recombination
       // std::cout << "jet-beam " << kA << std::endl;
       // get the hist_index
