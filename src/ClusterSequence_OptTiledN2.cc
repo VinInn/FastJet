@@ -20,7 +20,7 @@ namespace opti_details {
   
   class OTiledJet {
   public:
-    float     eta, phi, kt2=std::numeric_limits<float>::max(), NN_dist=1.f;
+    float     eta, phi, kt2=1.e26 /* std::numeric_limits<float>::max()*/, NN_dist=10000.f;
     unsigned short NN=NOWHERE; 
     unsigned short   _jets_index=NOWHERE, tile_index=NOWHERE;
     bool update=false;
@@ -123,33 +123,28 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   }
 
 
-    /*
+    
     auto verify = [&]() {
+      int ti=0;
       for (auto & tile : _tiles) {
-	if (0==tile.nJets) assert(tile.first==NOWHERE);
-	else {
-	  assert(tile.first!=NOWHERE);
-	  assert(tile.first < oriN);
-	  int k=0;
-	  auto p = NOWHERE;
-	  for (int iI = tile.first; iI != NOWHERE; iI = briefjets[iI].next) {
-	    assert(briefjets[iI].prev==p); p=iI;
-	    ++k;
-	    if (k<tile.nJets) assert(briefjets[iI].next!=NOWHERE);
-	    else assert(briefjets[iI].next==NOWHERE);	    
+	  assert(tile.first < bsize);
+          assert(tile.first+tile.nJets < bsize);
+          assert(tile.nJets <= mtls[ti]);
+	  for (int iI = tile.first; iI != tile.first+tile.nJets; ++iI) {
+	    assert(briefjets[iI].tile_index==ti);
 	  }
-	  assert(k==tile.nJets);		    
-	}
+          assert(briefjets[tile.first+tile.nJets].tile_index==NOWHERE);
+          ++ti;
       }
     };
-    */
-    // std::cout << "init done " << std::endl;
-    // verify();
-    // std::cout << " level 1" << std::endl;
+    
+    std::cout << "init done " << std::endl;
+    verify();
+    std::cout << " level 1" << std::endl;
 
   
   // define it locally
-auto bj_diJ = [&](OTiledJet const * const jet)->float  {
+  auto bj_diJ = [&](OTiledJet const * const jet)->float  {
     auto kt2 = jet->kt2;
     kt2 = (jet->NN != NOWHERE) ? std::min(kt2,briefjets[jet->NN].kt2) : kt2; 
     return jet->NN_dist * kt2;
@@ -248,6 +243,7 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
 
     if likely(jetB != nullptr) {
 
+      assert(kA!=kB);
       assert(kB!=NOWHERE);
       assert(kA!=NOWHERE);
       assert(jetA->_jets_index<_jets.size());
@@ -267,7 +263,7 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
       if (tin==jetB->tile_index) { // in place at kB
 	inplace=true;
       } else if (tin==jetA->tile_index) { // in place at kA
-	std::swap(jetA,jetB); std::swap(kA,kB);
+	std::swap(jetA,jetB); std::swap(kA,kB); tiA = jetA->tile_index;
 	inplace=true;
       } else {  // in a different tile (if there is space!)
 	if (mtls[tin]==_tiles[tin].nJets) {
@@ -276,17 +272,31 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
 	  return _minheap_faster_tiled_N2_cluster();
 	}
 	if (kA < kB) {
-	  std::swap(jetA,jetB); std::swap(kA,kB);
+	  std::swap(jetA,jetB); std::swap(kA,kB); tiA = jetA->tile_index;
 	}
       }
-
+      
 
       // what was jetB will now become the new jet
       oldIndex = jetB->tile_index;  // take a copy because we will need it...
- 
+          
+      assert(oldIndex!=NOWHERE);     
+      assert(tiA!=NOWHERE);
+      assert(kA!=kB);
+      if (tiA==oldIndex) assert(inplace); 
+
      // _bj_remove_from_tiles(jetA);
       //_bj_remove_from_tiles(jetB);
+
+     assert(tiA == jetA->tile_index);
+     assert(kA+head == jetA);
+     assert(_tiles[tiA].nJets>0);
+
+
      removeFromTile(kA);
+
+     assert(_tiles[oldIndex].nJets>0);
+
      if (!inplace) removeFromTile(kB);
  
 
@@ -297,7 +307,7 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
 	 kB = _tiles[tin].first+_tiles[tin].nJets;
 	 ++_tiles[tin].nJets;
 	 jetB = head+kB;
-	 assert(jetB->tile_index=NOWHERE);
+	 assert(jetB->tile_index==NOWHERE);
        }
 
        auto & j = *jetB;
@@ -310,8 +320,10 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
        j.tile_index=tin;
 
      }
-       // assert(jetB->tile_index!=NOWHERE);
-       // assert(_tiles[jetB->tile_index].first!=NOWHERE);     
+
+      assert(jetB->tile_index==tin);
+      assert(_tiles[jetB->tile_index].nJets>0);
+  
     } else {
       assert(kA!=NOWHERE);
       assert(jetA->_jets_index<_jets.size());
@@ -349,7 +361,7 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
       jets_for_minheap.push_back(kB);
     }
     
-    // verify();
+    verify();
 
     // Initialise jetB's NN distance as well as updating it for 
     // other particles.
@@ -410,7 +422,7 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
       }
     }
     
-    // verify();
+    verify();
 
     // deal with jets whose minheap entry needs updating
     while (jets_for_minheap.size() > 0) {
