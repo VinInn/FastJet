@@ -115,10 +115,10 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       ++mtls[index[i]];
     }
 
-    // for (unsigned int k=0; k!=_tiles.size(); ++k) assert(kj[k]==_tiles[k].first+_tiles[k].nJets);
+    for (unsigned int k=0; k!=_tiles.size(); ++k) assert(mtls[k]==_tiles[k].first+_tiles[k].nJets);
     // for (int i = 0; i!=n; ++i) assert( briefjets[i].tile_index!=NOWHERE);  
 
-    for (unsigned int k=0; k!=tsize; ++k) mtls[k]=+_tiles[k].nJets+1;  // this is max size
+    for (unsigned int k=0; k!=tsize; ++k) mtls[k]=_tiles[k].nJets+1;  // this is max size
 
   }
 
@@ -133,7 +133,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	  for (int iI = tile.first; iI != tile.first+tile.nJets; ++iI) {
 	    assert(briefjets[iI].tile_index==ti);
 	  }
-          assert(briefjets[tile.first+tile.nJets].tile_index==NOWHERE);
+          if (tile.nJets < mtls[ti]) assert(briefjets[tile.first+tile.nJets].tile_index==NOWHERE);
+ 
           ++ti;
       }
     };
@@ -219,9 +220,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     }
     minheap.remove(l);
     briefjets[l].tile_index=NOWHERE;
-    // assert(_tiles[jet.tile_index].nJets>=0);
-    // if (0==_tiles[jet.tile_index].nJets) assert(_tiles[jet.tile_index].first==NOWHERE);
-    // if (_tiles[jet.tile_index].nJets>0) assert(_tiles[jet.tile_index].first!=NOWHERE);
+    if (l!=k) assert(briefjets[k].tile_index==ti);
+    assert(_tiles[ti].nJets>=0);
+    assert(_tiles[ti].first!=NOWHERE);
   };
 
 
@@ -304,6 +305,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
                                  // (also registers the jet in the tiling)
      {
        if (!inplace) {
+         assert(mtls[tin]>_tiles[tin].nJets);
 	 kB = _tiles[tin].first+_tiles[tin].nJets;
 	 ++_tiles[tin].nJets;
 	 jetB = head+kB;
