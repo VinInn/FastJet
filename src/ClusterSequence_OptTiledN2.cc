@@ -295,6 +295,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	if (mtls[tin]==_tiles[tin].nJets) {
 	  std::cout << "FAILED " << tin << " " << mtls[tin] 
 		    << " "  << jetA->tile_index << " "  << jetB->tile_index << std::endl;
+          _jets.resize(oriN);
 	  return _minheap_faster_tiled_N2_cluster();
 	}
 	if (kA < kB) {
