@@ -236,7 +236,8 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
     unsigned short kA = minheap.minloc();
     auto jetA = head + kA;
 
-    assert(jetA->tile_index!=NOWHERE);     
+    auto tiA = jetA->tile_index;
+    assert(tiA!=NOWHERE);     
 
     // do the recombination between A and B
     history_location++;
@@ -324,20 +325,21 @@ auto bj_diJ = [&](OTiledJet const * const jet)->float  {
       removeFromTile(kA);
     }
     
-    
+    // at this point jetA DOES NOT EXISTS ANYMORE!
+
     // first establish the set of tiles over which we are going to
     // have to run searches for updated and new nearest-neighbours --
     // basically a combination of vicinity of the tiles of the two old
     // and one new jet.
     int n_near_tiles = 0;
-    _add_untagged_neighbours_to_tile_union(jetA->tile_index, 
+    _add_untagged_neighbours_to_tile_union(tiA, 
 					   tile_union, n_near_tiles);
     if likely(jetB != nullptr) {
-      if (jetB->tile_index != jetA->tile_index) {
+      if (jetB->tile_index != tiA) {
 	_add_untagged_neighbours_to_tile_union(jetB->tile_index,
 					       tile_union,n_near_tiles);
       }
-      if (oldIndex != jetA->tile_index && 
+      if (oldIndex != tiA && 
 	  oldIndex != jetB->tile_index) {
 	_add_untagged_neighbours_to_tile_union(oldIndex,
 					       tile_union,n_near_tiles);
