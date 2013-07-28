@@ -270,7 +270,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       }
     }
     // no need to do it for RH tiles, since they are implicitly done
-    // when we set NN for both jetA and jetB on the RH tiles.
+    // when we set NN for both jetA and jetB on the LH tiles.
   }
 
   
@@ -294,18 +294,17 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
   auto removeFromTile = [&](unsigned short k) {
     auto ti = briefjets[k].tile_index;
-    //  assert(ti<_tiles.size());
-    //assert(_tiles[ti].nJets>0);
-    //assert(indexNN[briefjets[k].jet_index] == k);
+    assert(ti>=tiles.head && ti<tiles.tail);
+    assert(tiles.last[ti]>tiles.first[ti]);
     // will move last to k...
     --tiles.last[ti];
     auto l =tiles.last[ti];
     // fix gards
     if (ti<tiles.head2) --tiles.last[ti+tiles.goff]; 
     if (ti>=tiles.tailN) --tiles.last[ti-tiles.goff]; 
-    //assert(briefjets[l].tile_index==ti);
-    //assert(k<=l);
-    //assert(k>=_tiles[ti].first);
+    assert(briefjets[l].tile_index==ti);
+    assert(k<=l);
+    assert(k>=tiles.first[ti]);
     if (l!=k) {
       //assert(indexNN[briefjets[l].jet_index] == l);
       briefjets[k]=briefjets[l];
@@ -317,8 +316,6 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     briefjets[l].tile_index=NOWHERE;
     briefjets[l].jet_index=NOWHERE;
     if (l!=k) assert(briefjets[k].tile_index==ti);
-    //assert(_tiles[ti].nJets>=0);
-    //assert(_tiles[ti].first!=NOWHERE);
   };
 
 
@@ -467,13 +464,15 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     // Run over all tiles in our union 
     
 
-
     for (int it=0; it!=ct; ++it) {
       auto row=  ttc[it] - tiles.rsize-1;
       for (int r=0;r!=3;++r) {  // rows
 	for (auto kk = row; kk!=row+3; ++kk) { // columns
 	  if (tiles.tag[kk]) continue;
 	  tiles.tag[kk]=true;
+	  if (kk<tiles.head2) tiles.tag[kk+tiles.goff]=true; 
+	  if (kk>=tiles.tailN) tiles.tag[kk-tiles.goff]=true; 
+
 	  // run over all jets in the current tile
 	  // if likely(tile_ptr->nJets>0)
 	  for (auto iI = tiles.first[kk]; iI !=tiles.last[kk]; ++iI) {
@@ -538,6 +537,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       for (int r=0;r!=3;++r) {
 	for (auto kk = row; kk!=row+3; ++kk) {
 	  tiles.tag[kk]=false;
+	  if (kk<tiles.head2) tiles.tag[kk+tiles.goff]=false; 
+	  if (kk>=tiles.tailN) tiles.tag[kk-tiles.goff]=false; 
+
 	}
 	row+=tiles.rsize;
       }
