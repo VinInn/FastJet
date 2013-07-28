@@ -82,10 +82,10 @@ namespace opti_details {
     }
 
     unsigned int index(float eta, float phi) const {
-      int ieta = 1 + std::max(0,std::min(int(nEta),int(floor(eta-etaMin)*deta)));
+      int ieta = 1 + std::max(0,std::min(int(nEta-1),int(floor(eta-etaMin)*deta)));
       // phi assumed between 0 and 2phi...)
       assert(phi>=0 && phi<=float(twopi));
-      int iphi = 1 + std::min(int(nPhi),int(phi*dphi));
+      int iphi = 1 + std::min(int(nPhi-1),int(phi*dphi));
       return iphi*rsize + ieta;
     }
 
@@ -136,6 +136,10 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   unsigned int index[n];
   for (unsigned int i = 0; i< n; i++) {
     index[i]  = tiles.index(_jets[i].rap(),_jets[i].phi_02pi());
+    { auto k = index[i];
+      assert(k>=tiles.head); assert(k<tiles.tail);
+      k = k%tiles.rsize; assert(k!=0); assert(k!=(tiles.rsize-1));
+   }
     ++tiles.last[index[i]];  // for the time being is size...
   }
     
@@ -143,7 +147,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   for (unsigned int ip=0; ip!=tiles.nPhi; ++ip) {
     for (unsigned int ie=0; ie!=tiles.nEta; ++ie) {
       tiles.first[t]=i; i+=std::max(4,int(tiles.last[t]+1)); // one more in each tile or at least 4
-      mtls[t]=tiles.first[t];
+      mtls[t]=tiles.first[t]; ++t;
     } 
     t+=2;  //skip the two eta gards
   }
