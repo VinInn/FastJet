@@ -555,8 +555,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     n--;
   }
   
-  
-    std::cout << "jet done " << tiles.size() << " " << oriN << " " << _jets.size()
+    /// backward compatible printout....
+    std::cout << "jet done " << _tiles.size() << " " << oriN << " " << _jets.size()
               << " " << _jets[oriN].rap() << "," << _jets[oriN].phi_02pi() << "," << jet_scale_for_algorithm(_jets[oriN])
               << " " << _jets[_jets.size()-1].rap() << "," << _jets[_jets.size()-1].phi_02pi() 	<< "," << jet_scale_for_algorithm(_jets[_jets.size()-1])
               << std::endl;
