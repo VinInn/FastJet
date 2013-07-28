@@ -199,26 +199,28 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
   
   auto verify = [&]() {
-    for (int ti=0; ti<tiles.size(); ++ti) {
+    for (unsigned int ti=0; ti<tiles.size(); ++ti) {
       assert(!tiles.tag[ti]);
       auto k = ti%tiles.rsize;
       if (k==0 || k==(tiles.rsize-1)) assert(tiles.first[ti]==tiles.last[ti]);
-      assert(tiles.first[ti]=< assert(tiles.last[ti]);
-      assert(tiles.first[ti] < bsize);
-      assert(tiles.last[ti] <= bsize);
-      if (k>0 && k<(tiles.rsize-1)) assert(tiles.last[ti] <= mtls[ti]);
-      for (int iI = tiles.first[ti]; iI != tiles.last[ti]; ++iI) {
-	assert(briefjets[iI].tile_index==ti);
+      assert(tiles.first[ti]<=tiles.last[ti]);
+      if (k>0 && k<(tiles.rsize-1))  {
+        assert(tiles.first[ti]< bsize);
+        assert(tiles.last[ti] <= bsize);
+        assert(tiles.last[ti] <= mtls[ti]);
       }
-      // if (tiles.nJets < mtls[ti]) assert(briefjets[tiles.first+tiles.nJets].tile_index==NOWHERE);
-      
-      ++ti;
+      for (int iI = tiles.first[ti]; iI != tiles.last[ti]; ++iI) {
+        auto tt = (ti>=tiles.head) ? ti : ti+tiles.goff;
+        tt	= (tt<tiles.tail) ? tt : ti-tiles.goff;
+	assert(briefjets[iI].tile_index==tt);
+        assert(indexNN[briefjets[iI].jet_index]==iI);
+      }
     }
   };
     
-  std::cout << "init done " << std::endl;
+  // std::cout << "init done " << std::endl;
   verify();
-  std::cout << " level 1" << std::endl;
+  // std::cout << " level 1" << std::endl;
   
   
   // define it locally
@@ -246,7 +248,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       }
     }
     // then do it for LH tiles (3 on top + one left
-    for (auto kk = (k-tiles.rsize)-1; kk!=(k-tiles.rsize)+2; ++k) {
+    for (auto kk = (k-tiles.rsize)-1; kk!=(k-tiles.rsize)+2; ++kk) {
       for (auto jA=tiles.first[k]; jA!=tiles.last[k]; ++jA) {
 	auto & jetA = briefjets[jA];
 	for (auto jB=tiles.first[kk]; jB!=tiles.last[kk]; ++jB) {
@@ -486,7 +488,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 		  jets_for_minheap.push_back(iI);
 		}
 		// now go over tiles that are neighbours of I (include own tile)
-		auto irow=kk-tiles.rsize-1;
+                // kk maybe a guard row!
+		auto irow = (jetI->tile_index) -tiles.rsize-1;
 		for (int ir=0;ir!=3;++ir) {  // rows
 		  for (auto ii = irow; ii!=irow+3; ++ii) { // columns
 		    for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange: they are all contiguous in a row. not all valid
@@ -497,7 +500,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 		      }
 		    }
 		  }
-		  row+=tiles.rsize;
+		  irow+=tiles.rsize;
 		}	    
 	      } // end JetI NN recomputation
 	    
