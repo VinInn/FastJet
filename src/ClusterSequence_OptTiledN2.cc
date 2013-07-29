@@ -82,7 +82,7 @@ namespace opti_details {
     }
 
     unsigned int index(float eta, float phi) const {
-      int ieta = 1 + std::max(0,std::min(int(nEta-1),int(floor(eta-etaMin)*deta)));
+      int ieta = 1 + std::max(0,std::min(int(nEta-1),int(floor((eta-etaMin)*deta))));
       // phi assumed between 0 and 2phi...)
       assert(phi>=0 && phi<=float(twopi));
       int iphi = 1 + std::min(int(nPhi-1),int(phi*dphi));
@@ -139,7 +139,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     { auto k = index[i];
       assert(k>=tiles.head); assert(k<tiles.tail);
       k = k%tiles.rsize; assert(k!=0); assert(k!=(tiles.rsize-1));
-   }
+    }
     ++tiles.last[index[i]];  // for the time being is size...
   }
     
@@ -230,10 +230,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     return jet->NN_dist * kt2;
   };
 
-  // will be used quite deep inside loops, but declare it here so that
-  // memory (de)allocation gets done only once
-  vector<int> tile_union(3*n_tile_neighbours);
-  
+ 
  
   // set up the initial nearest neighbour information
   for (auto k = tiles.head; k!=tiles.tail; ++k) {
@@ -424,8 +421,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
      }
 
      // indicate that we'll have to update jetB in the minheap
-      jetB->label_minheap_update_needed();
-      jets_for_minheap.push_back(kB);
+     jetB->label_minheap_update_needed();
+     jets_for_minheap.push_back(kB);
    
     } else {
  
