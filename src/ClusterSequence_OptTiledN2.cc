@@ -329,11 +329,11 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     auto tiA = jetA->tile_index;
     auto jiA = jetA->jet_index;
 
-    // assert(tiA!=NOWHERE);     
-    // assert(jiA!=NOWHERE);
-     
-    // assert(_tiles[tiA].nJets>0);
-    // assert(jiA<_jets.size());
+
+    //assert(kA!=NOWHERE);
+    //assert(tiA!=NOWHERE);     
+    //assert(jiA!=NOWHERE);
+    //assert(jiA<_jets.size());
 
 
     // do the recombination between A and B
@@ -346,18 +346,25 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     auto kB = paired ? indexNN[jetA->NN] : NOWHERE;
     auto jetB = paired ? head + kB : nullptr;
 
-    unsigned int oldIndex = paired ? jetB->tile_index : NOWHERE;
+    unsigned int otiB = paired ? jetB->tile_index : NOWHERE;
 
     // tiles where modified jets lies
     int ct=1;
     unsigned int ttc[3];
     ttc[0]=tiA;
-    if (oldIndex =! tiA) ttc[ct++] = oldIndex;
+    if (paired && otiB != tiA) ttc[ct++] = otiB;
 
 
 
     if likely(paired) {
 	
+      //assert(kB!=NOWHERE);
+      //assert(otiB!=NOWHERE);
+      //assert(jiB!=NOWHERE);
+      //assert(jiB!=(NOWHERE+1));
+      //assert(jiB<_jets.size());
+
+      
 
       // jet-jet recombination
       // If necessary relabel A & B depending where the new jet will endup
@@ -371,7 +378,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       auto tin = tiles.index(eta,phi);
 
       bool inplace=false;
-      if (tin==oldIndex) { // in place at kB
+      if (tin==otiB) { // in place at kB
 	inplace=true;
       } else if (tin==tiA) { // in place at kA
 	std::swap(jetA,jetB); std::swap(kA,kB); tiA = jetA->tile_index;jiA = jetA->jet_index;
@@ -389,6 +396,14 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
       }
       
+      //assert(ct<3);
+      //assert(kA!=kB);
+      //assert(kA!=NOWHERE);
+      //assert(tiA!=NOWHERE);
+      //assert(jiA!=NOWHERE);
+      //assert(jiA!=(NOWHERE+1));
+      //assert(jiA<_jets.size());
+
 
       // jetA will be removed and
       // what was jetB will now become the new jet  
