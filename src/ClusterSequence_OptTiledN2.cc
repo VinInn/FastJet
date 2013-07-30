@@ -120,7 +120,10 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
   _initialise_tiles();
 
-  OTiles tiles(_tiles_eta_min,_tiles_eta_max, _tiles_ieta_max-_tiles_ieta_min+1, _n_tiles_phi);
+
+  // OTiles tiles(_tiles_eta_min,_tiles_eta_max, _tiles_ieta_max-_tiles_ieta_min+1, _n_tiles_phi);
+  //   apparenlty deta is < _R2 for the above...
+  OTiles tiles(_tiles_eta_min,_tiles_eta_max, _tiles_ieta_max-_tiles_ieta_min, _n_tiles_phi);
 
 
 
