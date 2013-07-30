@@ -352,10 +352,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     int ct=1;
     unsigned int ttc[3];
     ttc[0]=tiA;
- 
-    if (oldIndex =! tiA) {
-      ttc[ct++] = oldIndex;
-    }
+    if (oldIndex =! tiA) ttc[ct++] = oldIndex;
 
 
 
@@ -363,8 +360,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	
 
       // jet-jet recombination
-      // If necessary relabel A & B to ensure jetB < jetA
-      // try to keep active jet close-by
+      // If necessary relabel A & B depending where the new jet will endup
 
       int nn; // new jet index
       _do_ij_recombination_step(jiA, jiB, diJ_min, nn);
@@ -375,9 +371,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       auto tin = tiles.index(eta,phi);
 
       bool inplace=false;
-      if (tin==jetB->tile_index) { // in place at kB
+      if (tin==oldIndex) { // in place at kB
 	inplace=true;
-      } else if (tin==jetA->tile_index) { // in place at kA
+      } else if (tin==tiA) { // in place at kA
 	std::swap(jetA,jetB); std::swap(kA,kB); tiA = jetA->tile_index;jiA = jetA->jet_index;
 	inplace=true;
       } else {  // in a different tile (if there is space!)
@@ -394,7 +390,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       }
       
 
-      // what was jetB will now become the new jet
+      // jetA will be removed and
+      // what was jetB will now become the new jet  
+
       jiB = jetB->jet_index;  // save old jet index
        
      removeFromTile(kA);
