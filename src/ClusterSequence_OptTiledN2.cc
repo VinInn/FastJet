@@ -319,6 +319,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     // if (l!=k) assert(briefjets[k].tile_index==ti);
   };
 
+  auto nOld = n;
+  constexpr int nMin=64; // tsize???
 
   while (n > 0) {
 
@@ -563,6 +565,43 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       briefjets[iI].label_minheap_update_done();
     }
     n--;
+
+    if (n>nMin && n < nOld/2) {
+      nOld = n;
+      // compactify the arrays
+      unsigned int i=0; unsigned int t=tiles.head;
+      for (unsigned int ip=0; ip!=tiles.nPhi; ++ip) {
+	for (unsigned int ie=0; ie!=tiles.nEta; ++ie) {
+	  auto sz = tiles.last[t]-tiles.first[t];
+	  auto fo =tiles.first[t];
+	  tiles.first[t]=i; i+=std::max(4,int(sz+1)); // one more in each tile or at least 4
+	  tiles.last[t] = tiles.first[t]+sz;
+	  mtls[t]=i;
+	  // copy
+	  auto ki=tiles.first[t];
+	  if (ki!=fo) for (auto k=fo; k!=fo+sz; ++k) {
+	      briefjets[ki] = briefjets[k];
+	      indexNN[briefjets[ki].jet_index]=ki;
+	      ki++;
+	    }
+	  // zero
+	  for (auto k=tiles.last[t]; k!=i; ++k) briefjets[k]=OTiledJet();
+	  ++t;
+	} 
+	t+=2;  //skip the two eta gards
+      }
+      assert((t-1)==tiles.size()-tiles.rsize);
+
+      // rebuild heap
+      float diJs[i];
+      for (unsigned int k = 0; k < i; ++k) {
+	diJs[k] = bj_diJ(&briefjets[k]);
+      }
+      minheap = MinHeap<float>(diJs,bsize);
+      // done ???
+    }
+
+
   }
   
     /// backward compatible printout....
