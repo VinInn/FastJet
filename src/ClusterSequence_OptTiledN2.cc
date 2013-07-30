@@ -341,12 +341,25 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
 
     auto jiB = jetA->NN;
-    auto kB = (jiB!=NOWHERE) ? indexNN[jetA->NN] : NOWHERE;
-    auto jetB = (jiB!=NOWHERE) ? head + kB : nullptr;
+    bool paired = jiB!=NOWHERE;
+    if (!paired) ++jiB; // trick so that jiB is not NOWHERE....
+    auto kB = paired ? indexNN[jetA->NN] : NOWHERE;
+    auto jetB = paired ? head + kB : nullptr;
 
-    unsigned int oldIndex = NOWHERE;
+    unsigned int oldIndex = paired ? jetB->tile_index : NOWHERE;
 
-    if likely(jiB!=NOWHERE) {
+    // tiles where modified jets lies
+    int ct=1;
+    unsigned int ttc[3];
+    ttc[0]=tiA;
+ 
+    if (oldIndex =! tiA) {
+      ttc[ct++] = oldIndex;
+    }
+
+
+
+    if likely(paired) {
 	
 
       // jet-jet recombination
@@ -368,6 +381,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	std::swap(jetA,jetB); std::swap(kA,kB); tiA = jetA->tile_index;jiA = jetA->jet_index;
 	inplace=true;
       } else {  // in a different tile (if there is space!)
+	ttc[ct++] = tin;  // a new tile!
+
 	if (mtls[tin]==tiles.last[tin]) {
 	  std::cout << "FAILED " << tin << " " << mtls[tin] 
 		    << " "  << jetA->tile_index << " "  << jetB->tile_index << std::endl;
@@ -375,15 +390,13 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	  // FIXME this is wrong still will may work...  for test
 	  inplace=true; // in place at kB
 	}
+
       }
       
 
       // what was jetB will now become the new jet
-      oldIndex = jetB->tile_index;  // take a copy because we will need it...
-      jiB = jetB->jet_index;
+      jiB = jetB->jet_index;  // save old jet index
        
-    
-
      removeFromTile(kA);
      // recompute kb...
      kB = indexNN[jiB];
@@ -437,25 +450,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     
     // at this point jetA DOES NOT EXISTS ANYMORE!
 
-    // first establish the set of tiles over which we are going to
-    // have to run searches for updated and new nearest-neighbours --
-    // basically a combination of vicinity of the tiles of the two old
-    // and one new jet.
-    int ct=1;
-    unsigned int ttc[3];
-    ttc[0]=tiA;
- 
-   if likely(jetB != nullptr) {
-      if (jetB->tile_index != tiA) {
-	ttc[ct++] = jetB->tile_index;
-      }
-      if (oldIndex != tiA && 
-	  oldIndex != jetB->tile_index) {
-	ttc[ct++] =oldIndex;
-      }
-    }
-    
-   // verify();
+    // verify();
+
 
     // Initialise jetB's NN distance as well as updating it for 
     // other particles.
@@ -475,8 +471,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	  // if likely(tile_ptr->nJets>0)
 	  for (auto iI = tiles.first[kk]; iI !=tiles.last[kk]; ++iI) {
 	    auto jetI = &briefjets[iI];
-	    // see if jetI had jetA or jetB as a NN -- if so recalculate the NN
-	    if unlikely(jetI->NN == jiA || (jetI->NN == jiB && jetB != nullptr)) {
+	    // see if jetI had jetA or jetB as a NN -- if so recalculate the NN  (jiB is eihter ok or NOWHERE+1)
+	    if unlikely(jetI->NN == jiA || (jetI->NN == jiB)) {
 		jetI->NN_dist = _R2;
 		jetI->NN      = NOWHERE;
 		// label jetI as needing heap action...
@@ -504,7 +500,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	    // check whether new jetB is closer than jetI's current NN and
 	    // if jetI is closer than jetB's current (evolving) nearest
 	    // neighbour. Where relevant update things
-	    if likely(jetB != nullptr) {
+	    if likely(paired) {
 		auto dist = _bj_dist(jetI,jetB);
 		if unlikely(dist < jetI->NN_dist) {
 		    if likely(jetI != jetB) {
@@ -520,7 +516,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 		if (dist < jetB->NN_dist) {
 		  if likely(jetI != jetB) {
 		      jetB->NN_dist = dist;
-		      jetB->NN      = jetI->jet_index;}
+		      jetB->NN      = jetI->jet_index;
+		    }
 		}
 	      }  // end jetB update
 	    
