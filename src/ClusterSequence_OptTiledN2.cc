@@ -591,13 +591,23 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	t+=2;  //skip the two eta gards
       }
       assert((t-1)==tiles.size()-tiles.rsize);
+  // fill phi gards
+  for (unsigned int k=0; k!=tiles.nEta; ++k) { 
+    tiles.first[1+k] = tiles.first[tiles.tailN+k]; 
+    tiles.last[1+k] =  tiles.last[tiles.tailN+k];
+  }
+  for (unsigned int k=0; k!=tiles.nEta; ++k) { 
+    tiles.first[tiles.tailN+tiles.rsize+k] = tiles.first[tiles.head+k]; 
+    tiles.last[tiles.tailN+tiles.rsize+k]  = tiles.last[tiles.head+k];
+  }
+
 
       // rebuild heap
       float diJs[i];
       for (unsigned int k = 0; k < i; ++k) {
 	diJs[k] = bj_diJ(&briefjets[k]);
       }
-      minheap = MinHeap<float>(diJs,bsize);
+      minheap = MinHeap<float>(diJs,i);
       // done ???
     }
 
