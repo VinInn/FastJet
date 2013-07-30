@@ -237,6 +237,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
  
   // set up the initial nearest neighbour information
   for (auto k = tiles.head; k!=tiles.tail; ++k) {
+    if (tiles.first[k]==tiles.last[k]) continue;  // empty...
     // first do it on this tile
     for (auto jA=tiles.first[k]; jA!=tiles.last[k]; ++jA) {
       auto  & jetA = briefjets[jA];
@@ -345,7 +346,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
     unsigned int oldIndex = NOWHERE;
 
-    if likely(jetB != nullptr) {
+    if likely(jiB!=NOWHERE) {
 	
 
       // jet-jet recombination
@@ -353,7 +354,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       // try to keep active jet close-by
 
       int nn; // new jet index
-      _do_ij_recombination_step(jetA->jet_index, jetB->jet_index, diJ_min, nn);
+      _do_ij_recombination_step(jiA, jiB, diJ_min, nn);
        assert(nn<int(2*oriN));
 
       auto eta = _jets[nn].rap();
@@ -373,9 +374,6 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	  // will need to re-adjust everything
 	  // FIXME this is wrong still will may work...  for test
 	  inplace=true; // in place at kB
-	}
-	if (kA < kB) {
-	  std::swap(jetA,jetB); std::swap(kA,kB); tiA = jetA->tile_index;jiA = jetA->jet_index;
 	}
       }
       
@@ -432,7 +430,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
      // jet-beam recombination
       // std::cout << "jet-beam " << kA << std::endl;
       // get the hist_index
-      _do_iB_recombination_step(jetA->jet_index, diJ_min);
+      _do_iB_recombination_step(jiA, diJ_min);
       // _bj_remove_from_tiles(jetA);
       removeFromTile(kA);
     }
