@@ -20,6 +20,7 @@ namespace opti_details {
   
   class OTiledJet {
   public:
+    explicit OTiledJet(int noloc) : NN(noloc){}
     float     eta, phi, kt2=1.e26 /* std::numeric_limits<float>::max()*/, NN_dist=10000.f;
     unsigned short NN=NOWHERE; 
     unsigned short jet_index=NOWHERE, tile_index=NOWHERE;
@@ -163,9 +164,10 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   if (n>31000  || bsize > 62000) return _minheap_faster_tiled_N2_cluster();
   
   
-  std::vector<OTiledJet> briefjets(bsize);
-  unsigned short indexNN[2*n]; // redirection of NN s....
-  
+  int NOLOC=2*n;
+  std::vector<OTiledJet> briefjets(bsize+1,OTiledJet(NOLOC));
+  unsigned short indexNN[2*n+1]; // redirection of NN s....
+  indexNN[NOLOC]=bsize;  // dummy place for vectorization
   
   // fil with real jets
   for (unsigned int i = 0; i!=n; ++i) {
@@ -202,6 +204,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   
   /*
   auto verify = [&]() {
+    assert(briefjets[indexNN[NOLOC]].kt2>_R2);
     for (unsigned int ti=0; ti<tiles.size(); ++ti) {
       assert(!tiles.tag[ti]);
       auto k = ti%tiles.rsize;
@@ -229,7 +232,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   // define it locally
   auto bj_diJ = [&](OTiledJet const * const jet)->float  {
     auto kt2 = jet->kt2;
-    kt2 = (jet->NN != NOWHERE) ? std::min(kt2,briefjets[indexNN[jet->NN]].kt2) : kt2; 
+    kt2 = (jet->NN != NOLOC) ? std::min(kt2,briefjets[indexNN[jet->NN]].kt2) : kt2; 
     return jet->NN_dist * kt2;
   };
 
@@ -315,14 +318,14 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     minheap.remove(l);
     //assert(minheap[l]>1.e26);
     briefjets[l].tile_index=NOWHERE;
-    briefjets[l].jet_index=NOWHERE;
+    briefjets[l].jet_index=NOLOC;
     // if (l!=k) assert(briefjets[k].tile_index==ti);
   };
 
 
   auto compactify  = [&]() {
     // compactify the array
-    std::vector<OTiledJet> newBriefjets(bsize);  // can be made smaller...
+    std::vector<OTiledJet> newBriefjets(bsize+1,OTiledJet(NOLOC));  // can be made smaller...
 
     unsigned int i=0; unsigned int t=tiles.head;
     for (unsigned int ip=0; ip!=tiles.nPhi; ++ip) {
