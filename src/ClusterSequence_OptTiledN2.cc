@@ -278,7 +278,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
  
 
   float diJs[bsize];
-  for (unsigned int i = 0; i < bsize; i++) {
+  for (unsigned int i = 0; i != bsize; i++) {
     diJs[i] = bj_diJ(&briefjets[i]);
   }
 
@@ -319,6 +319,51 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     // if (l!=k) assert(briefjets[k].tile_index==ti);
   };
 
+
+  auto compactify  = [&]() {
+    // compactify the arrays
+    unsigned int i=0; unsigned int t=tiles.head;
+    for (unsigned int ip=0; ip!=tiles.nPhi; ++ip) {
+      for (unsigned int ie=0; ie!=tiles.nEta; ++ie) {
+	auto sz = tiles.last[t]-tiles.first[t];
+	auto fo =tiles.first[t];
+	tiles.first[t]=i; i+=std::max(4,int(sz+1)); // one more in each tile or at least 4
+	tiles.last[t] = tiles.first[t]+sz;
+	mtls[t]=i;
+	// copy
+	auto ki=tiles.first[t];
+	if (ki!=fo) for (auto k=fo; k!=fo+sz; ++k) {
+	    briefjets[ki] = briefjets[k];
+	    indexNN[briefjets[ki].jet_index]=ki;
+	    ki++;
+	  }
+	// zero
+	for (auto k=tiles.last[t]; k!=i; ++k) briefjets[k]=OTiledJet();
+	++t;
+      } 
+      t+=2;  //skip the two eta gards
+    }
+    assert((t-1)==tiles.size()-tiles.rsize);
+    // fill phi gards
+    for (unsigned int k=0; k!=tiles.nEta; ++k) { 
+      tiles.first[1+k] = tiles.first[tiles.tailN+k]; 
+      tiles.last[1+k] =  tiles.last[tiles.tailN+k];
+    }
+    for (unsigned int k=0; k!=tiles.nEta; ++k) { 
+      tiles.first[tiles.tailN+tiles.rsize+k] = tiles.first[tiles.head+k]; 
+      tiles.last[tiles.tailN+tiles.rsize+k]  = tiles.last[tiles.head+k];
+    }
+    
+    // rebuild heap
+    float diJs[i];
+    for (unsigned int k = 0; k != i; ++k) {
+      diJs[k] = bj_diJ(&briefjets[k]);
+    }
+    minheap = MinHeap<float>(diJs,i);
+    // done ???
+  };
+  
+  
   auto nOld = n;
   constexpr int nMin=64; // tsize???
 
@@ -383,19 +428,18 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       if (tin==otiB) { // in place at kB
 	inplace=true;
       } else if (tin==tiA) { // in place at kA
-	std::swap(jetA,jetB); std::swap(kA,kB); tiA = jetA->tile_index;jiA = jetA->jet_index;
+	std::swap(jetA,jetB); std::swap(kA,kB); tiA = jetA->tile_index;jiA = jetA->jet_index;  jiB = jetB->jet_index; 
 	inplace=true;
       } else {  // in a different tile (if there is space!)
 	ttc[ct++] = tin;  // a new tile!
-
+	
 	if (mtls[tin]==tiles.last[tin]) {
 	  std::cout << "FAILED " << tin << " " << mtls[tin] 
 		    << " "  << jetA->tile_index << " "  << jetB->tile_index << std::endl;
 	  // will need to re-adjust everything
-	  // FIXME this is wrong still will may work...  for test
-	  inplace=true; // in place at kB
+	  compactify();
+	  kA = indexNN[jiA];
 	}
-
       }
       
       //assert(ct<3);
@@ -410,7 +454,6 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       // jetA will be removed and
       // what was jetB will now become the new jet  
 
-      jiB = jetB->jet_index;  // save old jet index
        
      removeFromTile(kA);
      // recompute kb...
@@ -565,60 +608,17 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       briefjets[iI].label_minheap_update_done();
     }
     n--;
-
+    
     if (n>nMin && n < nOld/2) {
       nOld = n;
-      // compactify the arrays
-      unsigned int i=0; unsigned int t=tiles.head;
-      for (unsigned int ip=0; ip!=tiles.nPhi; ++ip) {
-	for (unsigned int ie=0; ie!=tiles.nEta; ++ie) {
-	  auto sz = tiles.last[t]-tiles.first[t];
-	  auto fo =tiles.first[t];
-	  tiles.first[t]=i; i+=std::max(4,int(sz+1)); // one more in each tile or at least 4
-	  tiles.last[t] = tiles.first[t]+sz;
-	  mtls[t]=i;
-	  // copy
-	  auto ki=tiles.first[t];
-	  if (ki!=fo) for (auto k=fo; k!=fo+sz; ++k) {
-	      briefjets[ki] = briefjets[k];
-	      indexNN[briefjets[ki].jet_index]=ki;
-	      ki++;
-	    }
-	  // zero
-	  for (auto k=tiles.last[t]; k!=i; ++k) briefjets[k]=OTiledJet();
-	  ++t;
-	} 
-	t+=2;  //skip the two eta gards
-      }
-      assert((t-1)==tiles.size()-tiles.rsize);
-  // fill phi gards
-  for (unsigned int k=0; k!=tiles.nEta; ++k) { 
-    tiles.first[1+k] = tiles.first[tiles.tailN+k]; 
-    tiles.last[1+k] =  tiles.last[tiles.tailN+k];
-  }
-  for (unsigned int k=0; k!=tiles.nEta; ++k) { 
-    tiles.first[tiles.tailN+tiles.rsize+k] = tiles.first[tiles.head+k]; 
-    tiles.last[tiles.tailN+tiles.rsize+k]  = tiles.last[tiles.head+k];
-  }
-
-
-      // rebuild heap
-      float diJs[i];
-      for (unsigned int k = 0; k < i; ++k) {
-	diJs[k] = bj_diJ(&briefjets[k]);
-      }
-      minheap = MinHeap<float>(diJs,i);
-      // done ???
+      compactify();
     }
-
-
   }
-  
-    /// backward compatible printout....
-    std::cout << "jet done " << _tiles.size() << " " << oriN << " " << _jets.size()
-              << " " << _jets[oriN].rap() << "," << _jets[oriN].phi_02pi() << "," << jet_scale_for_algorithm(_jets[oriN])
-              << " " << _jets[_jets.size()-1].rap() << "," << _jets[_jets.size()-1].phi_02pi() 	<< "," << jet_scale_for_algorithm(_jets[_jets.size()-1])
-              << std::endl;
+  /// backward compatible printout....
+  std::cout << "jet done " << _tiles.size() << " " << oriN << " " << _jets.size()
+	    << " " << _jets[oriN].rap() << "," << _jets[oriN].phi_02pi() << "," << jet_scale_for_algorithm(_jets[oriN])
+	    << " " << _jets[_jets.size()-1].rap() << "," << _jets[_jets.size()-1].phi_02pi() 	<< "," << jet_scale_for_algorithm(_jets[_jets.size()-1])
+	    << std::endl;
   
 }
   
