@@ -20,10 +20,10 @@ namespace opti_details {
   
   class OTiledJet {
   public:
-    explicit OTiledJet(int noloc) : NN(noloc){}
+    explicit OTiledJet(int noloc) : NN(noloc), jet_index(noloc) {}
     float     eta, phi, kt2=1.e26 /* std::numeric_limits<float>::max()*/, NN_dist=10000.f;
-    unsigned short NN=NOWHERE; 
-    unsigned short jet_index=NOWHERE, tile_index=NOWHERE;
+    unsigned short NN=62005; 
+    unsigned short jet_index=62005, tile_index=NOWHERE;
     bool update=false;
     inline void label_minheap_update_needed() {update=true;}
     inline void label_minheap_update_done()   {update=false;}
@@ -223,17 +223,19 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       }
     }
   };
-  */
-  // std::cout << "init done " << std::endl;
-  //verify();
-  // std::cout << " level 1" << std::endl;
   
+  // std::cout << "init done " << std::endl;
+  verify();
+  std::cout << " level 1" << std::endl;
+  */
   
   // define it locally
   auto bj_diJ = [&](OTiledJet const * const jet)->float  {
-    auto kt2 = jet->kt2;
-    kt2 = (jet->NN != NOLOC) ? std::min(kt2,briefjets[indexNN[jet->NN]].kt2) : kt2; 
-    return jet->NN_dist * kt2;
+    // NOLOC exits and point to a very large kt2! 
+    return jet->NN_dist *std::min(jet->kt2,briefjets[indexNN[jet->NN]].kt2); 
+    // auto kt2 = jet->kt2;
+    // kt2 = (jet->NN != NOLOC) ? std::min(kt2,briefjets[indexNN[jet->NN]].kt2) : kt2; 
+    // return jet->NN_dist * kt2;
   };
 
  
@@ -348,6 +350,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       } 
       t+=2;  //skip the two eta gards
     }
+    assert(i<=bsize);
     assert((t-1)==tiles.size()-tiles.rsize);
     std::swap(newBriefjets,briefjets);
     head =  &briefjets.front();
@@ -363,17 +366,22 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     }
     
     // rebuild heap
-    float diJs[i];
+    float diJ[i];
     for (unsigned int k = 0; k != i; ++k) {
-      diJs[k] = bj_diJ(&briefjets[k]);
+      diJ[k] = bj_diJ(&briefjets[k]);
     }
-    minheap = MinHeap<float>(diJs,i);
+    minheap = MinHeap<float>(diJ,i);
     // done ???
   };
   
   
   auto nOld = n;
   constexpr int nMin=64; // tsize???
+
+  //verify();
+  //std::cout << " level 2" << std::endl;
+ 
+
 
   while (n > 0) {
 
@@ -396,8 +404,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
 
     auto jiB = jetA->NN;
-    bool paired = jiB!=NOWHERE;
-    if (!paired) ++jiB; // trick so that jiB is not NOWHERE....
+    bool paired = jiB!=NOLOC;
+    if (!paired) ++jiB; // trick so that jiB is not NOLOC....
     auto kB = paired ? indexNN[jetA->NN] : NOWHERE;
     auto jetB = paired ? head + kB : nullptr;
 
@@ -493,7 +501,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
        j.phi = phi;
        j.kt2 = chop(jet_scale_for_algorithm(_jets[nn]));
        j.NN_dist = _R2;
-       j.NN = NOWHERE;
+       j.NN = NOLOC;
        j.jet_index=nn;
        j.tile_index=tin;
        indexNN[nn]=kB;
@@ -516,7 +524,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     
     // at this point jetA DOES NOT EXISTS ANYMORE!
 
-    // verify();
+    //verify();
 
 
     // Initialise jetB's NN distance as well as updating it for 
@@ -537,10 +545,10 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	  // if likely(tile_ptr->nJets>0)
 	  for (auto iI = tiles.first[kk]; iI !=tiles.last[kk]; ++iI) {
 	    auto jetI = &briefjets[iI];
-	    // see if jetI had jetA or jetB as a NN -- if so recalculate the NN  (jiB is eihter ok or NOWHERE+1)
+	    // see if jetI had jetA or jetB as a NN -- if so recalculate the NN  (jiB is eihter ok or NOLOC+1)
 	    if unlikely(jetI->NN == jiA || (jetI->NN == jiB)) {
 		jetI->NN_dist = _R2;
-		jetI->NN      = NOWHERE;
+		jetI->NN      = NOLOC;
 		// label jetI as needing heap action...
 		if (!jetI->minheap_update_needed()) {
 		  jetI->label_minheap_update_needed();
@@ -618,8 +626,10 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     n--;
     
     if (n>nMin && n < nOld/2) {
+      // std::cout << "compact " << n << std::endl;
       nOld = n;
       compactify();
+      // verify();
     }
   }
   /// backward compatible printout....
