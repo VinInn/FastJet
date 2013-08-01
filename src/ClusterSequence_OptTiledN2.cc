@@ -607,35 +607,37 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
             // if (briefjets.jet_index[iI]>_jets.size()) std::cout << "??? j " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << briefjets.jet_index[iI] << " " << briefjets.NN[iI] << std::endl;
 	    // see if jetI had jetA or jetB as a NN -- if so recalculate the NN  (jiB is eihter ok or NOLOC+1)
 	    if unlikely(briefjets.NN[iI] == jiA || (briefjets.NN[iI] == jiB)) {
-		briefjets.NN_dist[iI] = _R2;
-		briefjets.NN[iI]   = NOLOC;
+		// now go over tiles that are neighbours of I (include own tile)
+		float ndist=_R2;
+		auto nind = NOLOC;
+                // kk maybe a guard row!
+		auto irow = briefjets.tile_index[iI] -tiles.rsize-1;
+		for (int ir=0;ir!=3;++ir) {  // rows
+		  for (auto ii = irow; ii!=irow+3; ++ii) { // columns
+		    // if (tiles.last[irow+2]-tiles.first[irow]>bsize) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
+		    // if (tiles.last[irow+2]<tiles.first[irow]) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
+		    
+		    for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange: they are all contiguous in a row. not all valid
+		      for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
+			auto dist = briefjets.dist(iI,iJ);
+			nind =  (dist<ndist) ?  briefjets.jet_index[iJ] : nind;
+			ndist = (dist<ndist) ? dist : ndist;
+			// if (dist < briefjets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
+			// if (briefjets.jet_index[iI]>_jets.size()) std::cout << "??? d " << dist << " " << briefjets.NN_dist[iI] << " " << briefjets.jet_index[iJ] << std::endl;
+		      // briefjets.NN_dist[iI] = dist; briefjets.NN[iI] = briefjets.jet_index[iJ];
+		      // }
+		      }
+		    }
+		  }
+		  irow+=tiles.rsize;
+		}
+		briefjets.NN_dist[iI] = ndist;
+		briefjets.NN[iI]   = nind;
 		// label jetI as needing heap action...
 		if (!briefjets.minheap_update_needed(iI)) {
 		  briefjets.label_minheap_update_needed(iI);
 		  jets_for_minheap.push_back(iI);
 		}
-		// now go over tiles that are neighbours of I (include own tile)
-                // kk maybe a guard row!
-		auto irow = briefjets.tile_index[iI] -tiles.rsize-1;
-		for (int ir=0;ir!=3;++ir) {  // rows
-		  // for (auto ii = irow; ii!=irow+3; ++ii) { // columns
-		  // if (tiles.last[irow+2]-tiles.first[irow]>bsize) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
-                  // if (tiles.last[irow+2]<tiles.first[irow]) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
- 
-		  // for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange: they are all contiguous in a row. not all valid
-                    for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
-                      auto dold = briefjets.NN_dist[iI];
-		      auto dist = briefjets.dist(iI,iJ);
-                      briefjets.NN[iI] =  (dist<dold) ?  briefjets.jet_index[iJ] : briefjets.NN[iI];
-                      briefjets.NN_dist[iI] = (dist<dold) ? dist : dold;
-		      // if (dist < briefjets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
-			// if (briefjets.jet_index[iI]>_jets.size()) std::cout << "??? d " << dist << " " << briefjets.NN_dist[iI] << " " << briefjets.jet_index[iJ] << std::endl;
-		      // briefjets.NN_dist[iI] = dist; briefjets.NN[iI] = briefjets.jet_index[iJ];
-		      // }
-		    }
-		  // }
-		  irow+=tiles.rsize;
-		}	    
 	      } // end JetI NN recomputation
 	    
 	    // check whether new jetB is closer than jetI's current NN and
