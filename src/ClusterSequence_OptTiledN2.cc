@@ -89,7 +89,20 @@ namespace opti_details {
       tile_index[i]= o.tile_index[j]; 
       update[i]=o.update[j];  
     }
-    
+  
+
+    void swap (OJets & o) {
+      eta.swap(o.eta);
+      phi.swap(o.phi);
+      kt2.swap(o.kt2); 
+      NN_dist.swap(o.NN_dist);
+      NN.swap(o.NN);
+      jet_index.swap(o.jet_index);
+      tile_index.swap(o.tile_index); 
+      update.swap(o.update);  
+    }
+  
+ 
    
     std::vector<float> eta, phi, kt2, NN_dist;
     std::vector<unsigned short> NN; 
@@ -403,8 +416,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     }
     assert(i<=bsize);
     assert((t-1)==tiles.size()-tiles.rsize);
-    std::swap(newBriefjets,briefjets);
-
+    newBriefjets.swap(briefjets);
+    bsize=i;
+    indexNN[NOLOC]=bsize;
 
     // fill phi gards
     for (unsigned int k=0; k!=tiles.rsize; ++k) { 
@@ -610,11 +624,14 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
  
 		  // for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange: they are all contiguous in a row. not all valid
                     for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
-		      auto dist = briefjets.dist(iI,iJ);
-		      if (dist < briefjets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
+                      auto dold = briefjets.NN_dist[iI];
+		      auto dist = (Ii!=iJ) ? briefjets.dist(iI,iJ) : 10000.f;
+                      briefjets.NN[iI] =  (dist<dold) ?  briefjets.jet_index[iJ] : briefjets.NN[iI];
+                      briefjets.NN_dist[iI] = (dist<dold) ? dist : dold;
+		      // if (dist < briefjets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
 			// if (briefjets.jet_index[iI]>_jets.size()) std::cout << "??? d " << dist << " " << briefjets.NN_dist[iI] << " " << briefjets.jet_index[iJ] << std::endl;
-		       briefjets.NN_dist[iI] = dist; briefjets.NN[iI] = briefjets.jet_index[iJ];
-		      }
+		      // briefjets.NN_dist[iI] = dist; briefjets.NN[iI] = briefjets.jet_index[iJ];
+		      // }
 		    }
 		  // }
 		  irow+=tiles.rsize;
