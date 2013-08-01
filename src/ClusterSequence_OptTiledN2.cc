@@ -90,6 +90,9 @@ namespace opti_details {
       update[i]=o.update[j];  
     }
   
+    void copy (unsigned int j, unsigned int i) {
+      copy(*this, j, i);
+    }
 
     void swap (OJets & o) {
       eta.swap(o.eta);
@@ -377,10 +380,11 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     // assert(k>=tiles.first[ti]);
     if (l!=k) {
       // assert(indexNN[briefjets.jet_index[l]] == l);
-      briefjets.move(l,k);
+      briefjets.copy(l,k);
       minheap.update(k,minheap[l]);
       indexNN[briefjets.jet_index[k]] = k;
-    } else briefjets.reset(l);
+    } 
+    briefjets.reset(l);
     minheap.remove(l);
     //assert(minheap[l]>1.e26);
     // if (l!=k) assert(briefjets.tile_index[k]==ti);
@@ -618,15 +622,14 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 		    // if (tiles.last[irow+2]<tiles.first[irow]) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
 		    
 		    for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange: they are all contiguous in a row. not all valid
-		      for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
+		      //for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
 			auto dist = briefjets.dist(iI,iJ);
 			nind =  (dist<ndist) ?  briefjets.jet_index[iJ] : nind;
 			ndist = (dist<ndist) ? dist : ndist;
 			// if (dist < briefjets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
 			// if (briefjets.jet_index[iI]>_jets.size()) std::cout << "??? d " << dist << " " << briefjets.NN_dist[iI] << " " << briefjets.jet_index[iJ] << std::endl;
 		      // briefjets.NN_dist[iI] = dist; briefjets.NN[iI] = briefjets.jet_index[iJ];
-		      // }
-		      }
+		      //}
 		    }
 		  }
 		  irow+=tiles.rsize;
@@ -694,6 +697,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     }
     n--;
     
+
     if (n>nMin && n < nOld/2) {
       // std::cout << "compact " << n << std::endl;
       nOld = n;
