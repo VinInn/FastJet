@@ -21,7 +21,7 @@ namespace opti_details {
   class OTiledJet {
   public:
     explicit OTiledJet(int noloc) : NN(noloc), jet_index(noloc) {}
-    float     eta, phi, kt2=1.e26 /* std::numeric_limits<float>::max()*/, NN_dist=10000.f;
+    float     eta=100.f, phi=100.f, kt2=1.e26 /* std::numeric_limits<float>::max()*/, NN_dist=10000.f;
     unsigned short NN=62005; 
     unsigned short jet_index=62005, tile_index=NOWHERE;
     bool update=false;
@@ -70,7 +70,7 @@ namespace opti_details {
       auto sz = (nEta+2)*(nPhi+2);
       rsize = nEta+2;
 
-      first.resize(sz,NOWHERE);
+      first.resize(sz,0);
       last.resize(sz,0);
       tag.resize(sz,false);
 
@@ -153,7 +153,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       tiles.first[t]=i; i+=std::max(4,int(tiles.last[t]+1)); // one more in each tile or at least 4
       mtls[t]=tiles.first[t]; ++t;
     } 
-    t+=2;  //skip the two eta gards
+    //skip the two eta gards
+    tiles.first[t]=i; t++;
+    tiles.first[t]=i; t++;
   }
   
   assert((t-1)==tiles.size()-tiles.rsize);
@@ -191,13 +193,13 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   for (unsigned int k=0; k!=tsize; ++k) tiles.last[k]+=tiles.first[k];
   for (unsigned int k=0; k!=tsize; ++k) mtls[k]=std::max(tiles.first[k]+4,tiles.last[k]+1);  // this is max size
   // fill phi gards
-  for (unsigned int k=0; k!=tiles.nEta; ++k) { 
-    tiles.first[1+k] = tiles.first[tiles.tailN+k]; 
-    tiles.last[1+k] =  tiles.last[tiles.tailN+k];
+  for (unsigned int k=0; k!=tiles.rsize; ++k) { 
+    tiles.first[k] = tiles.first[tiles.tailN+k-1]; 
+    tiles.last[k] =  tiles.last[tiles.tailN+k-1];
   }
-  for (unsigned int k=0; k!=tiles.nEta; ++k) { 
-    tiles.first[tiles.tailN+tiles.rsize+k] = tiles.first[tiles.head+k]; 
-    tiles.last[tiles.tailN+tiles.rsize+k]  = tiles.last[tiles.head+k];
+  for (unsigned int k=0; k!=tiles.rsize; ++k) { 
+    tiles.first[tiles.tailN+tiles.rsize+k-1] = tiles.first[tiles.head+k-1]; 
+    tiles.last[tiles.tailN+tiles.rsize+k-1]  = tiles.last[tiles.head+k-1];
   }
   
   
@@ -321,6 +323,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     //assert(minheap[l]>1.e26);
     briefjets[l].tile_index=NOWHERE;
     briefjets[l].jet_index=NOLOC;
+    briefjets[l].eta=100.f; briefjets[l].phi=100.f;
     // if (l!=k) assert(briefjets[k].tile_index==ti);
   };
 
@@ -348,7 +351,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	// for (auto k=tiles.last[t]; k!=i; ++k) briefjets[k]=OTiledJet();
 	++t;
       } 
-      t+=2;  //skip the two eta gards
+      //skip the two eta gards
+      tiles.last[t]=tiles.first[t]=i; t++;
+      tiles.last[t]=tiles.first[t]=i; t++;
     }
     assert(i<=bsize);
     assert((t-1)==tiles.size()-tiles.rsize);
@@ -356,13 +361,13 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     head =  &briefjets.front();
 
     // fill phi gards
-    for (unsigned int k=0; k!=tiles.nEta; ++k) { 
-      tiles.first[1+k] = tiles.first[tiles.tailN+k]; 
-      tiles.last[1+k] =  tiles.last[tiles.tailN+k];
+    for (unsigned int k=0; k!=tiles.rsize; ++k) { 
+      tiles.first[k] = tiles.first[tiles.tailN+k-1]; 
+      tiles.last[k] =  tiles.last[tiles.tailN+k-1];
     }
-    for (unsigned int k=0; k!=tiles.nEta; ++k) { 
-      tiles.first[tiles.tailN+tiles.rsize+k] = tiles.first[tiles.head+k]; 
-      tiles.last[tiles.tailN+tiles.rsize+k]  = tiles.last[tiles.head+k];
+    for (unsigned int k=0; k!=tiles.rsize; ++k) { 
+      tiles.first[tiles.tailN+tiles.rsize+k-1] = tiles.first[tiles.head+k-1]; 
+      tiles.last[tiles.tailN+tiles.rsize+k-1]  = tiles.last[tiles.head+k-1];
     }
     
     // rebuild heap
@@ -545,6 +550,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	  // if likely(tile_ptr->nJets>0)
 	  for (auto iI = tiles.first[kk]; iI !=tiles.last[kk]; ++iI) {
 	    auto jetI = &briefjets[iI];
+            // if (jetI->tile_index>tsize) std::cout << "??? " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << jetI->jet_index << " " << jetI->NN << std::endl;
 	    // see if jetI had jetA or jetB as a NN -- if so recalculate the NN  (jiB is eihter ok or NOLOC+1)
 	    if unlikely(jetI->NN == jiA || (jetI->NN == jiB)) {
 		jetI->NN_dist = _R2;
@@ -558,15 +564,20 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
                 // kk maybe a guard row!
 		auto irow = (jetI->tile_index) -tiles.rsize-1;
 		for (int ir=0;ir!=3;++ir) {  // rows
-		  for (auto ii = irow; ii!=irow+3; ++ii) { // columns
-		    for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange: they are all contiguous in a row. not all valid
+		  // for (auto ii = irow; ii!=irow+3; ++ii) { // columns
+                  //  if (tiles.last[irow+2]-tiles.first[irow]>bsize) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
+                  // if (tiles.last[irow+2]<tiles.first[irow]) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
+ 
+		  // for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange: they are all contiguous in a row. not all valid
+                    for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
 		      auto jetJ = &briefjets[iJ];
 		      auto dist = _bj_dist(jetI,jetJ);
 		      if (dist < jetI->NN_dist && jetJ != jetI) {  // FIXME we should find a way to get dist to itself infinite!
+                        // if (jetJ->jet_index>_jets.size()) std::cout << "??? " << dist << " " << jetI->NN_dist << " " << jetJ->eta << " " << jetJ->phi << " " << jetJ->jet_index << std::endl;
 			jetI->NN_dist = dist; jetI->NN =jetJ->jet_index;
 		      }
 		    }
-		  }
+		  // }
 		  irow+=tiles.rsize;
 		}	    
 	      } // end JetI NN recomputation
