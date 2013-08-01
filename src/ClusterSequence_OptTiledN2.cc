@@ -52,8 +52,8 @@ namespace opti_details {
       auto dphi = std::abs(phi[i] - phi[j]);
       auto deta = (eta[i] - eta[j]);
       dphi =  (dphi > pif) ? twopif - dphi : dphi;
-      return dphi*dphi + deta*deta;
-      // return (i==j) ? 100000.f : dphi*dphi + deta*deta;
+      // return dphi*dphi + deta*deta;
+      return (i==j) ? 10000.f : dphi*dphi + deta*deta;
     }
     
     void move(unsigned int j, unsigned int i) {
@@ -610,11 +610,10 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
  
 		  // for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange: they are all contiguous in a row. not all valid
                     for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
+                      auto dold = briefjets.NN_dist[iI];
 		      auto dist = briefjets.dist(iI,iJ);
-		      if (dist < briefjets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
-			// if (briefjets.jet_index[iI]>_jets.size()) std::cout << "??? d " << dist << " " << briefjets.NN_dist[iI] << " " << briefjets.jet_index[iJ] << std::endl;
-		       briefjets.NN_dist[iI] = dist; briefjets.NN[iI] = briefjets.jet_index[iJ];
-		      }
+                      briefjets.NN[iI] =  (dist<dold) ?  briefjets.jet_index[iJ] : briefjets.NN[iI];
+                      briefjets.NN_dist[iI] = (dist<dold) ? dist : dold;
 		    }
 		  // }
 		  irow+=tiles.rsize;
