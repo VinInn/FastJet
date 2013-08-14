@@ -21,7 +21,7 @@ namespace opti_details {
   constexpr float twopif=2*pif;
   
 
-  /*
+  
   class OTiledJet {
   public:
     explicit OTiledJet(int noloc) : NN(noloc), jet_index(noloc) {}
@@ -33,14 +33,104 @@ namespace opti_details {
     inline void label_minheap_update_done()   {update=false;}
     inline bool minheap_update_needed() const {return update;}
   };
-  */
-
-  // SOA
-  class OJets {
+  
+  // AOS
+  class OJetsAOS {
   public:
     using Itype = unsigned short;
- 
-    OJets(unsigned int sz,  unsigned int noloc) : 
+    
+    OJetsAOS(unsigned int sz,  unsigned int noloc) : 
+      jets(sz,OTiledJet(noloc)), s(sz) {}
+    
+    unsigned int size() const { return s;}
+    float eta(int i) const { return jets[i].eta;}
+    float & eta(int i) { return jets[i].eta;}
+    float phi(int i) const { return jets[i].phi;}
+    float & phi(int i) { return jets[i].phi;}
+    float kt2(int i) const { return jets[i].kt2;}
+    float & kt2(int i) { return jets[i].kt2;}
+    float NN_dist(int i) const { return jets[i].NN_dist;}
+    float & NN_dist(int i) { return jets[i].NN_dist;}
+    Itype NN(int i) const { return jets[i].NN;}
+    Itype & NN(int i) { return jets[i].NN;}
+    Itype jet_index(int i) const { return jets[i].jet_index;}
+    Itype & jet_index(int i) { return jets[i].jet_index;}
+    Itype tile_index(int i) const { return jets[i].tile_index;}
+    Itype & tile_index(int i) { return jets[i].tile_index;}
+    
+    
+    void label_minheap_update_needed(unsigned int i) { jets[i].update=true;}
+    void label_minheap_update_done(unsigned int i)   { jets[i].update=false;}
+    bool minheap_update_needed(unsigned int i) const {return jets[i].update;}
+    
+    float dist(unsigned int i, unsigned int j) const {
+      auto dphi = std::abs(phi(i) - phi(j));
+      auto deta = eta(i) - eta(j);
+      dphi =  (dphi > pif) ? twopif - dphi : dphi;
+      // return dphi*dphi + deta*deta;
+      return (i==j) ? 10000.f : dphi*dphi + deta*deta;
+    }
+    
+  
+    // valid if we are sure dphi < pi
+    float safeDist(unsigned int i, unsigned int j) const {
+      auto dphi = phi(i) - phi(j);
+      auto deta = eta(i) - eta(j);
+      return (i==j) ? 10000.f : dphi*dphi + deta*deta;
+    }
+    
+    
+    // valid if we are sure dphi < pi and i!=j
+    float safeDist1(unsigned int i, unsigned int j) const {
+      auto dphi = phi(i) - phi(j);
+      auto deta = eta(i) - eta(j);
+      return dphi*dphi + deta*deta;
+    }
+    
+    
+    // valid if we are sure dphi > pi
+    float safeDist2(unsigned int i, unsigned int j) const {
+      auto dphi = twopif - std::abs(phi(i) - phi(j));
+      auto deta = eta(i) - eta(j);
+      // can never be i==j
+      return dphi*dphi + deta*deta;
+    }
+    
+    
+    void move(unsigned int j, unsigned int i) {
+      jets[i]=jets[j]; jets[j]=jets.back();
+    }
+    
+    void reset (unsigned int i) {
+      jets[i]=jets.back();
+    }
+    
+    
+    void copy (OJetsAOS const & o, unsigned int j, unsigned int i) {
+      jets[i] = o.jets[j];
+    }
+    
+    void copy (unsigned int j, unsigned int i) {
+      copy(*this, j, i);
+    }
+    
+    void swap (OJetsAOS & o) {
+      jets.swap(o.jets);
+    }
+  
+  private:
+    
+    std::vector<OTiledJet> jets;
+    unsigned int s;
+  };
+  
+  
+  // SOA
+  class OJetsSOA {
+  public:
+    using Itype = unsigned short;
+    
+    OJetsSOA(unsigned int sz,  unsigned int noloc) : 
       veta(sz,100.f), vphi(sz,100.f), vkt2(sz,1.e26), vNN_dist(sz,10000.f),
       vNN(sz,noloc), vjet_index(sz,noloc), vtile_index(sz,NOWHERE),
       vupdate(sz,false), s(sz) {}
@@ -60,8 +150,8 @@ namespace opti_details {
     Itype & jet_index(int i) { return vjet_index[i];}
     Itype tile_index(int i) const { return vtile_index[i];}
     Itype & tile_index(int i) { return vtile_index[i];}
-
-
+    
+    
     void label_minheap_update_needed(unsigned int i) {vupdate[i]=true;}
     void label_minheap_update_done(unsigned int i)   {vupdate[i]=false;}
     bool minheap_update_needed(unsigned int i) const {return vupdate[i];}
@@ -74,6 +164,32 @@ namespace opti_details {
       return (i==j) ? 10000.f : dphi*dphi + deta*deta;
     }
     
+    
+    // valid if we are sure dphi < pi
+    float safeDist(unsigned int i, unsigned int j) const {
+      auto dphi = phi(i) - phi(j);
+      auto deta = eta(i) - eta(j);
+      return (i==j) ? 10000.f : dphi*dphi + deta*deta;
+    }
+    
+    
+    // valid if we are sure dphi < pi and i!=j
+    float safeDist1(unsigned int i, unsigned int j) const {
+      auto dphi = phi(i) - phi(j);
+      auto deta = eta(i) - eta(j);
+      return dphi*dphi + deta*deta;
+    }
+    
+    
+    // valid if we are sure dphi > pi
+    float safeDist2(unsigned int i, unsigned int j) const {
+      auto dphi = twopif - std::abs(phi(i) - phi(j));
+      auto deta = eta(i) - eta(j);
+      // can never be i==j
+      return dphi*dphi + deta*deta;
+    }
+    
+    
     void move(unsigned int j, unsigned int i) {
       eta(i)=eta(j); eta(j)=100.f;
       phi(i)=phi(j); phi(j)=100.f;
@@ -84,7 +200,7 @@ namespace opti_details {
       tile_index(i)= tile_index(j); tile_index(j)=vtile_index.back();
       vupdate[i]=vupdate[j];vupdate[j]=false;     
     }
-
+    
     void reset (unsigned int j) {
       eta(j)=100.f;
       phi(j)=100.f;
@@ -97,7 +213,7 @@ namespace opti_details {
     }
 
     
-    void copy (OJets const & o, unsigned int j, unsigned int i) {
+    void copy (OJetsSOA const & o, unsigned int j, unsigned int i) {
       eta(i)=o.eta(j);
       phi(i)=o.phi(j);
       kt2(i)=o.kt2(j); 
@@ -111,8 +227,8 @@ namespace opti_details {
     void copy (unsigned int j, unsigned int i) {
       copy(*this, j, i);
     }
-
-    void swap (OJets & o) {
+    
+    void swap (OJetsSOA & o) {
       veta.swap(o.veta);
       vphi.swap(o.vphi);
       vkt2.swap(o.vkt2); 
@@ -122,9 +238,9 @@ namespace opti_details {
       vtile_index.swap(o.vtile_index); 
       vupdate.swap(o.vupdate);  
     }
-  
+    
 private:
-   
+    
     std::vector<float> veta, vphi, vkt2, vNN_dist;
     std::vector<unsigned short> vNN; 
     std::vector<unsigned short> vjet_index,  vtile_index;
@@ -132,6 +248,7 @@ private:
     unsigned int s;
   };
   
+  using  OJets = OJetsAOS;
   
   struct OTiles {
     using Itype = unsigned int; 
@@ -197,20 +314,22 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
 
   if (n==0) {
-    auto half = oriN + (_jets.size()-oriN)/2;
     _minheap_faster_tiled_N2_cluster();
+    /*
+    auto half = oriN + (_jets.size()-oriN)/2;
     std::cout << "jet done " << _tiles.size() << " " << oriN << " " << _jets.size()
               << " " << _jets[oriN].rap() << "," << _jets[oriN].phi_02pi() << "," << jet_scale_for_algorithm(_jets[oriN])
        	      << " " <<	_jets[half].rap() << "," << _jets[half].phi_02pi()  << "," << jet_scale_for_algorithm(_jets[half])
        	      << " " <<	_jets[_jets.size()-1].rap() << "," << _jets[_jets.size()-1].phi_02pi()  << "," << jet_scale_for_algorithm(_jets[_jets.size()-1])
               << std::endl;
+    */
     return;
   }
 
   _initialise_tiles();
 
   // too few tiles to optize deltaphi...
-  // if (_n_tiles_phi<5)   return _minheap_faster_tiled_N2_cluster();
+  if (_n_tiles_phi<5)   return _minheap_faster_tiled_N2_cluster();
 
 
 
@@ -345,25 +464,37 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     // first do it on this tile
     for (auto jA=tiles.first[k]; jA!=tiles.last[k]; ++jA) {
       for (auto jB =tiles.first[k]; jB!=jA; ++jB) {
-	auto dist = briefjets.dist(jA,jB);
+	auto dist = briefjets.safeDist1(jA,jB);
 	if (dist < briefjets.NN_dist(jA)) {briefjets.NN_dist(jA) = dist; briefjets.NN(jA) = briefjets.jet_index(jB);}
 	if (dist < briefjets.NN_dist(jB)) {briefjets.NN_dist(jB) = dist; briefjets.NN(jB) = briefjets.jet_index(jA);}
       }
     }
     // then do it for LH tiles (3 on top + one left
-    for (auto kk = (k-tiles.rsize)-1; kk!=(k-tiles.rsize)+2; ++kk) {
-      for (auto jA=tiles.first[k]; jA!=tiles.last[k]; ++jA) {
-	for (auto jB=tiles.first[kk]; jB!=tiles.last[kk]; ++jB) {
-	  auto dist = briefjets.dist(jA,jB);
-	  if (dist < briefjets.NN_dist(jA)) {briefjets.NN_dist(jA) = dist; briefjets.NN(jA) = briefjets.jet_index(jB);}
-	  if (dist < briefjets.NN_dist(jB)) {briefjets.NN_dist(jB) = dist; briefjets.NN(jB) = briefjets.jet_index(jA);}
+    if (k<tiles.head2) // dphi>pi
+      for (auto kk = (k-tiles.rsize)-1; kk!=(k-tiles.rsize)+2; ++kk) {
+	for (auto jA=tiles.first[k]; jA!=tiles.last[k]; ++jA) {
+	  for (auto jB=tiles.first[kk]; jB!=tiles.last[kk]; ++jB) {
+	    auto dist = briefjets.safeDist2(jA,jB);
+	    if (dist < briefjets.NN_dist(jA)) {briefjets.NN_dist(jA) = dist; briefjets.NN(jA) = briefjets.jet_index(jB);}
+	    if (dist < briefjets.NN_dist(jB)) {briefjets.NN_dist(jB) = dist; briefjets.NN(jB) = briefjets.jet_index(jA);}
+	  }
 	}
       }
-    }
+    else
+      for (auto kk = (k-tiles.rsize)-1; kk!=(k-tiles.rsize)+2; ++kk) {
+	for (auto jA=tiles.first[k]; jA!=tiles.last[k]; ++jA) {
+	  for (auto jB=tiles.first[kk]; jB!=tiles.last[kk]; ++jB) {
+	    auto dist = briefjets.safeDist1(jA,jB);
+	    if (dist < briefjets.NN_dist(jA)) {briefjets.NN_dist(jA) = dist; briefjets.NN(jA) = briefjets.jet_index(jB);}
+	    if (dist < briefjets.NN_dist(jB)) {briefjets.NN_dist(jB) = dist; briefjets.NN(jB) = briefjets.jet_index(jA);}
+	  }
+	}
+      }
+
     auto kk = k-1;
     for (auto jA=tiles.first[k]; jA!=tiles.last[k]; ++jA) {
       for (auto jB=tiles.first[kk]; jB!=tiles.last[kk]; ++jB) {
-	auto dist = briefjets.dist(jA,jB);
+	auto dist = briefjets.safeDist1(jA,jB);
 	if (dist < briefjets.NN_dist(jA)) {briefjets.NN_dist(jA) = dist; briefjets.NN(jA) = briefjets.jet_index(jB);}
 	if (dist < briefjets.NN_dist(jB)) {briefjets.NN_dist(jB) = dist; briefjets.NN(jB) = briefjets.jet_index(jA);}
       }
@@ -641,23 +772,47 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
                 // kk maybe a guard row!
 		auto irow = briefjets.tile_index(iI) -tiles.rsize-1;
 		for (int ir=0;ir!=3;++ir) {  // rows
-		  for (auto ii = irow; ii!=irow+3; ++ii) { // columns
-		    // if (tiles.last[irow+2]-tiles.first[irow]>bsize) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
-		    // if (tiles.last[irow+2]<tiles.first[irow]) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
-		    
-		    for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange (when minloc pattern will vectorize!): they are all contiguous in a row. not all valid
-		      //for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
-			auto dist = briefjets.dist(iI,iJ);
+		  if (irow<tiles.rsize || irow>tiles.tail) // deltaphi>pi 
+		    for (auto ii = irow; ii!=irow+3; ++ii) { // columns
+		      for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
+			auto dist = briefjets.safeDist2(iI,iJ);
 			nind =  (dist<ndist) ?  briefjets.jet_index(iJ) : nind;
 			ndist = (dist<ndist) ? dist : ndist;
-			// if (dist < briefjets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
-			// if (briefjets.jet_index[iI]>_jets.size()) std::cout << "??? d " << dist << " " << briefjets.NN_dist[iI] << " " << briefjets.jet_index[iJ] << std::endl;
-		      // briefjets.NN_dist[iI] = dist; briefjets.NN[iI] = briefjets.jet_index[iJ];
-		      //}
+		      }
 		    }
-		  }
+		  else if(ir!=1)
+		    for (auto ii = irow; ii!=irow+3; ++ii) { // columns
+		      for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
+			auto dist = briefjets.safeDist1(iI,iJ);
+			nind =  (dist<ndist) ?  briefjets.jet_index(iJ) : nind;
+			ndist = (dist<ndist) ? dist : ndist;
+		      }
+		    }
+		  else  // central row
+		    for (auto ii = irow; ii!=irow+3; ++ii) { // columns
+		      for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
+			auto dist = briefjets.safeDist(iI,iJ);
+			nind =  (dist<ndist) ?  briefjets.jet_index(iJ) : nind;
+			ndist = (dist<ndist) ? dist : ndist;
+		      }
+		    }
 		  irow+=tiles.rsize;
-		}
+		}  
+
+		  // if (tiles.last[irow+2]-tiles.first[irow]>bsize) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
+		  // if (tiles.last[irow+2]<tiles.first[irow]) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
+		  
+		  //for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange (when minloc pattern will vectorize!): they are all contiguous in a row. not all valid
+		  //for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
+		  // auto dist = briefjets.dist(iI,iJ);
+		  //	nind =  (dist<ndist) ?  briefjets.jet_index(iJ) : nind;
+		  //	ndist = (dist<ndist) ? dist : ndist;
+		  // if (dist < briefjets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
+		  // if (briefjets.jet_index[iI]>_jets.size()) std::cout << "??? d " << dist << " " << briefjets.NN_dist[iI] << " " << briefjets.jet_index[iJ] << std::endl;
+		  // briefjets.NN_dist[iI] = dist; briefjets.NN[iI] = briefjets.jet_index[iJ];
+		  //}
+
+
 		briefjets.NN_dist(iI) = ndist;
 		briefjets.NN(iI)   = nind;
 		// label jetI as needing heap action...
@@ -729,6 +884,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       // verify();
     }
   }
+  /*
   /// backward compatible printout....
   auto half = oriN + (_jets.size()-oriN)/2;
   std::cout << "jet done " << _tiles.size() << " " << oriN << " " << _jets.size()
@@ -736,7 +892,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	    << " " <<	_jets[half].rap() << "," << _jets[half].phi_02pi()  << "," << jet_scale_for_algorithm(_jets[half])
  	    << " " << _jets[_jets.size()-1].rap() << "," << _jets[_jets.size()-1].phi_02pi() 	<< "," << jet_scale_for_algorithm(_jets[_jets.size()-1])
 	    << std::endl;
-  
+  */
 }
   
   
