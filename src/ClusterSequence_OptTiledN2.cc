@@ -5,7 +5,7 @@
 #include "fastjet/PseudoJet.hh"
 #include "fastjet/ClusterSequence.hh"
 #include "fastjet/internal/MinHeap.hh"
-
+#include<cstdlib>
 
 #include<cassert>
 
@@ -40,8 +40,14 @@ namespace opti_details {
     using Itype = unsigned short;
     
     OJetsAOS(unsigned int sz,  unsigned int noloc) : 
-      jets(sz,OTiledJet(noloc)), s(sz) {}
+      jets((OTiledJet*)(::malloc(sz*sizeof(OTiledJet))) ), s(sz) {
+      for (unsigned int i=0; i!=s; ++i) jets[i]=OTiledJet(noloc);
+    }
     
+    ~OJetsAOS() {
+      free(jets);
+    }
+
     unsigned int size() const { return s;}
     float eta(int i) const { return jets[i].eta;}
     float & eta(int i) { return jets[i].eta;}
@@ -59,6 +65,9 @@ namespace opti_details {
     Itype & tile_index(int i) { return jets[i].tile_index;}
     
     
+    OTiledJet const & back() const { return jets[s-1];}
+
+
     void label_minheap_update_needed(unsigned int i) { jets[i].update=true;}
     void label_minheap_update_done(unsigned int i)   { jets[i].update=false;}
     bool minheap_update_needed(unsigned int i) const {return jets[i].update;}
@@ -98,11 +107,11 @@ namespace opti_details {
     
     
     void move(unsigned int j, unsigned int i) {
-      jets[i]=jets[j]; jets[j]=jets.back();
+      jets[i]=jets[j]; jets[j]=back();
     }
     
     void reset (unsigned int i) {
-      jets[i]=jets.back();
+      jets[i]=back();
     }
     
     
@@ -115,12 +124,13 @@ namespace opti_details {
     }
     
     void swap (OJetsAOS & o) {
-      jets.swap(o.jets);
+      std::swap(jets,o.jets);
+      std::swap(s,o.s);
     }
   
   private:
     
-    std::vector<OTiledJet> jets;
+    OTiledJet * jets;
     unsigned int s;
   };
   
