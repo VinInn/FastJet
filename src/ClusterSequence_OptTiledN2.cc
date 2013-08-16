@@ -6,6 +6,7 @@
 #include "fastjet/ClusterSequence.hh"
 #include "fastjet/internal/MinHeap.hh"
 #include<cstdlib>
+#include<cstring>
 
 #include<cassert>
 
@@ -33,6 +34,25 @@ namespace opti_details {
     inline void label_minheap_update_done()   {update=false;}
     inline bool minheap_update_needed() const {return update;}
   };
+
+  inline
+  OTiledJet* minit(unsigned int sz,  unsigned int noloc) {
+      OTiledJet* jets= ((OTiledJet*)(::malloc(sz*sizeof(OTiledJet))) );
+      unsigned char * cj = (unsigned char *)(jets);
+      auto last = cj+sz*sizeof(OTiledJet);
+      auto half = cj + (last-cj)/2;
+      jets[0]=OTiledJet(noloc);
+      auto start = cj+sizeof(OTiledJet);
+      auto bs = start-cj;
+      while (start<half) {
+        ::memcpy(start,cj,bs);
+        start+=bs;
+        bs = start-cj;
+      };
+      assert(last-start<=start-cj);
+      ::memcpy(start,cj,last-start);
+      return jets;
+  }
   
   // AOS
   class OJetsAOS {
@@ -40,8 +60,7 @@ namespace opti_details {
     using Itype = unsigned short;
     
     OJetsAOS(unsigned int sz,  unsigned int noloc) : 
-      jets((OTiledJet*)(::malloc(sz*sizeof(OTiledJet))) ), s(sz) {
-      for (unsigned int i=0; i!=s; ++i) jets[i]=OTiledJet(noloc);
+      jets(minit(sz,noloc)), s(sz) {
     }
     
     ~OJetsAOS() {
@@ -107,16 +126,20 @@ namespace opti_details {
     
     
     void move(unsigned int j, unsigned int i) {
-      jets[i]=jets[j]; jets[j]=back();
+       ::memcpy(&jets[i],&jets[j],sizeof(OTiledJet));
+       ::memcpy(&jets[j],&back(),sizeof(OTiledJet));
+      // jets[i]=jets[j]; jets[j]=back();
     }
     
     void reset (unsigned int i) {
-      jets[i]=back();
+      ::memcpy(&jets[i],&back(),sizeof(OTiledJet));
+      // jets[i]=back();
     }
     
     
     void copy (OJetsAOS const & o, unsigned int j, unsigned int i) {
-      jets[i] = o.jets[j];
+      ::memcpy(&jets[i],&o.jets[j],sizeof(OTiledJet));
+      // jets[i] = o.jets[j];
     }
     
     void copy (unsigned int j, unsigned int i) {
@@ -372,7 +395,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   unsigned int i=0; unsigned int t=tiles.head;
   for (unsigned int ip=0; ip!=tiles.nPhi; ++ip) {
     for (unsigned int ie=0; ie!=tiles.nEta; ++ie) {
-      tiles.first[t]=i; i+=std::max(4,int(tiles.last[t]+1)); // one more in each tile or at least 4
+      tiles.first[t]=i; i+=std::max(2,int(tiles.last[t]+1)); // one more in each tile or at least 4
       mtls[t]=tiles.first[t]; ++t;
     } 
     //skip the two eta gards
@@ -423,7 +446,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     tiles.last[tiles.tailN+tiles.rsize+k-1]  = tiles.last[tiles.head+k-1];
   }
   
-  for (unsigned int k=0; k!=tsize; ++k) mtls[k]=std::max(tiles.first[k]+4,tiles.last[k]+1);  // this is max size
+  for (unsigned int k=0; k!=tsize; ++k) mtls[k]=std::max(tiles.first[k]+2,tiles.last[k]+1);  // this is max size
 
   
   /*
@@ -565,7 +588,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       for (unsigned int ie=0; ie!=tiles.nEta; ++ie) {
 	auto sz = tiles.last[t]-tiles.first[t];
 	auto fo =tiles.first[t];
-	tiles.first[t]=i; i+=std::max(4,int(sz+1)); // one more in each tile or at least 4
+	tiles.first[t]=i; i+=std::max(2,int(sz+1)); // one more in each tile or at least 4
 	tiles.last[t] = tiles.first[t]+sz; 
 	mtls[t]=i;
 	// copy
@@ -610,7 +633,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   
   
   auto nOld = n;
-  constexpr int nMin=64; // tsize???
+  constexpr int nMin=256; // tsize???
 
   // verify();
   // std::cout << " level 2" << std::endl;
