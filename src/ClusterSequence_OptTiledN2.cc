@@ -29,10 +29,6 @@ namespace opti_details {
     float     eta=100.f, phi=100.f, kt2=1.e26, NN_dist=10000.f;
     unsigned short NN=62005; 
     unsigned short jet_index=62005, tile_index=NOWHERE;
-    bool update=false;
-    inline void label_minheap_update_needed() {update=true;}
-    inline void label_minheap_update_done()   {update=false;}
-    inline bool minheap_update_needed() const {return update;}
   };
 
   inline
@@ -86,10 +82,6 @@ namespace opti_details {
     
     OTiledJet const & back() const { return jets[s-1];}
 
-
-    void label_minheap_update_needed(unsigned int i) { jets[i].update=true;}
-    void label_minheap_update_done(unsigned int i)   { jets[i].update=false;}
-    bool minheap_update_needed(unsigned int i) const {return jets[i].update;}
     
     float dist(unsigned int i, unsigned int j) const {
       auto dphi = std::abs(phi(i) - phi(j));
@@ -166,7 +158,7 @@ namespace opti_details {
     OJetsSOA(unsigned int sz,  unsigned int noloc) : 
       veta(sz,100.f), vphi(sz,100.f), vkt2(sz,1.e26), vNN_dist(sz,10000.f),
       vNN(sz,noloc), vjet_index(sz,noloc), vtile_index(sz,NOWHERE),
-      vupdate(sz,false), s(sz) {}
+       s(sz) {}
     
     unsigned int size() const { return s;}
     float eta(int i) const { return veta[i];}
@@ -185,9 +177,6 @@ namespace opti_details {
     Itype & tile_index(int i) { return vtile_index[i];}
     
     
-    void label_minheap_update_needed(unsigned int i) {vupdate[i]=true;}
-    void label_minheap_update_done(unsigned int i)   {vupdate[i]=false;}
-    bool minheap_update_needed(unsigned int i) const {return vupdate[i];}
     
     float dist(unsigned int i, unsigned int j) const {
       auto dphi = std::abs(phi(i) - phi(j));
@@ -231,7 +220,6 @@ namespace opti_details {
       NN(i)=NN(j); NN(j)=vNN.back();
       jet_index(i)= jet_index(j); jet_index(j)=vjet_index.back();
       tile_index(i)= tile_index(j); tile_index(j)=vtile_index.back();
-      vupdate[i]=vupdate[j];vupdate[j]=false;     
     }
     
     void reset (unsigned int j) {
@@ -242,7 +230,6 @@ namespace opti_details {
       NN(j)=vNN.back();
       jet_index(j)=vjet_index.back();
       tile_index(j)=vtile_index.back();
-      vupdate[j]=false;
     }
 
     
@@ -254,7 +241,6 @@ namespace opti_details {
       NN(i)=o.NN(j);
       jet_index(i)= o.jet_index(j);
       tile_index(i)= o.tile_index(j); 
-      vupdate[i]=o.vupdate[j];  
     }
   
     void copy (unsigned int j, unsigned int i) {
@@ -269,7 +255,6 @@ namespace opti_details {
       vNN.swap(o.vNN);
       vjet_index.swap(o.vjet_index);
       vtile_index.swap(o.vtile_index); 
-      vupdate.swap(o.vupdate);  
     }
     
 private:
@@ -277,7 +262,6 @@ private:
     std::vector<float> veta, vphi, vkt2, vNN_dist;
     std::vector<unsigned short> vNN; 
     std::vector<unsigned short> vjet_index,  vtile_index;
-    std::vector<bool> vupdate;
     unsigned int s;
   };
   
@@ -760,7 +744,6 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
      }
 
      // indicate that we'll have to update jetB in the minheap
-     briefjets.label_minheap_update_needed(kB);
      jets_for_minheap.push_back(kB);
    
     } else {
@@ -795,6 +778,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	  // run over all jets in the current tile
 	  // if likely(tile_ptr->nJets>0)
 	  for (auto iI = tiles.first[kk]; iI !=tiles.last[kk]; ++iI) {
+	    bool mod=false;
+            bool isB = iI==kB;
 	    //  if (briefjets.tile_index[iI]>tsize) std::cout << "??? k " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << briefjets.jet_index[iI] << " " << briefjets.NN[iI] << std::endl;
             // if (briefjets.jet_index[iI]>_jets.size()) std::cout << "??? j " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << briefjets.jet_index[iI] << " " << briefjets.NN[iI] << std::endl;
 	    // see if jetI had jetA or jetB as a NN -- if so recalculate the NN  (jiB is eihter ok or NOLOC+1)
@@ -849,33 +834,25 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 		briefjets.NN_dist(iI) = ndist;
 		briefjets.NN(iI)   = nind;
 		// label jetI as needing heap action...
-		if (!briefjets.minheap_update_needed(iI)) {
-		  briefjets.label_minheap_update_needed(iI);
-		  jets_for_minheap.push_back(iI);
-		}
+                mod=true;
+		jets_for_minheap.push_back(iI);
+		
 	      } // end JetI NN recomputation
 	    
 	    // check whether new jetB is closer than jetI's current NN and
 	    // if jetI is closer than jetB's current (evolving) nearest
 	    // neighbour. Where relevant update things
-	    if likely(paired) {
+	    if likely(paired &!isB) {
 		auto dist = briefjets.dist(iI,kB);
 		if unlikely(dist < briefjets.NN_dist(iI)) {
-		    if likely(iI != kB) {
 			briefjets.NN_dist(iI) = dist;
 			briefjets.NN(iI) = briefjets.jet_index(kB);
 			// label jetI as needing heap action...
-			if (!briefjets.minheap_update_needed(iI)) {
-			  briefjets.label_minheap_update_needed(iI);
-			  jets_for_minheap.push_back(iI);
-			}
-		      }
+			if (!mod) jets_for_minheap.push_back(iI);
 		  }
 		if (dist < briefjets.NN_dist(kB)) {
-		  if likely(iI != kB) {
 		      briefjets.NN_dist(kB)=dist;;
 		      briefjets.NN(kB) = briefjets.jet_index(iI);
-		    }
 		}
 	      }  // end jetB update
 	    
@@ -905,7 +882,6 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       auto iI = jets_for_minheap.back(); 
       jets_for_minheap.pop_back();
       minheap.update(iI, bj_diJ(iI));
-      briefjets.label_minheap_update_done(iI);
     }
     n--;
     
