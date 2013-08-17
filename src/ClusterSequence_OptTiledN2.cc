@@ -23,21 +23,39 @@ namespace opti_details {
   constexpr double fp2fix_d = 4096.;
   constexpr double fix2fp_d = 1./4096.;
 
+  constexpr FixPoint inffix = 32700;
   constexpr FixPoint maxfix = 32000;
+  constexpr double maxeta_d = 7.2;
+  constexpr float maxeta_f = 7.2;
 
-  constexpr FixPoint fp2fix(float x) { return std::rint(x*fp2fix_f);}
-  constexpr FixPoint fp2fix(double x) { return std::rint(x*fp2fix_d);}
+
+  // cannot be constexpr!
+  inline FixPoint fp2fix(float x) {  return std::rint(x*fp2fix_f);}
+  inline FixPoint fp2fix(double x) { return std::rint(x*fp2fix_d);}
+
+  inline FixPoint fp2fixS(float x) {  return fp2fix(std::copysign(std::min(maxeta_f,std::abs(x)),x));}
+  inline FixPoint fp2fixS(double x) { return fp2fix(std::copysign(std::min(maxeta_d,std::abs(x)),x));}
+
+
+  constexpr float fix2f(FixPoint x) { return x*fix2fp_f;}
 
   constexpr unsigned short NOWHERE = 62001;
   constexpr float pif=M_PI;
   constexpr float twopif=2*pif;
+
+  // constexpr FixPoint pifix= fp2fix(M_PI);
+  // constexpr FixPoint twopifix = fp2fix(2*pif);
+  constexpr FixPoint pifix=  M_PI*fp2fix_d + 0.5;
+  constexpr FixPoint twopifix = 2*M_PI*fp2fix_d + 0.5;
   
 
   
   class ProtoJet {
   public:
     explicit ProtoJet(int noloc) : NN(noloc), jet_index(noloc) {}
-    float     eta=100.f, phi=100.f, kt2=1.e26, NN_dist=10000.f;
+    float kt2=1.e26; 
+    FixPoint  eta=maxfix, phi=maxfix; 
+    FixPoint  NN_dist=inffix;
     unsigned short NN=62005; 
     unsigned short jet_index=62005, tile_index=NOWHERE;
   };
@@ -75,14 +93,14 @@ namespace opti_details {
     }
 
     unsigned int size() const { return s;}
-    float eta(int i) const { return jets[i].eta;}
-    float & eta(int i) { return jets[i].eta;}
-    float phi(int i) const { return jets[i].phi;}
-    float & phi(int i) { return jets[i].phi;}
     float kt2(int i) const { return jets[i].kt2;}
     float & kt2(int i) { return jets[i].kt2;}
-    float NN_dist(int i) const { return jets[i].NN_dist;}
-    float & NN_dist(int i) { return jets[i].NN_dist;}
+    FixPoint eta(int i) const { return jets[i].eta;}
+    FixPoint & eta(int i) { return jets[i].eta;}
+    FixPoint phi(int i) const { return jets[i].phi;}
+    FixPoint & phi(int i) { return jets[i].phi;}
+    FixPoint NN_dist(int i) const { return jets[i].NN_dist;}
+    FixPoint & NN_dist(int i) { return jets[i].NN_dist;}
     Itype NN(int i) const { return jets[i].NN;}
     Itype & NN(int i) { return jets[i].NN;}
     Itype jet_index(int i) const { return jets[i].jet_index;}
@@ -94,25 +112,25 @@ namespace opti_details {
     ProtoJet const & back() const { return jets[s-1];}
 
     
-    float dist(unsigned int i, unsigned int j) const {
+    FixPoint dist(unsigned int i, unsigned int j) const {
       auto dphi = std::abs(phi(i) - phi(j));
       auto deta = eta(i) - eta(j);
-      dphi =  (dphi > pif) ? twopif - dphi : dphi;
+      dphi =  (dphi > pifix) ? twopifix - dphi : dphi;
       // return dphi*dphi + deta*deta;
-      return (i==j) ? 10000.f : dphi*dphi + deta*deta;
+      return (i==j) ? inffix : dphi*dphi + deta*deta;
     }
     
   
     // valid if we are sure dphi < pi
-    float safeDist(unsigned int i, unsigned int j) const {
+    FixPoint safeDist(unsigned int i, unsigned int j) const {
       auto dphi = phi(i) - phi(j);
       auto deta = eta(i) - eta(j);
-      return (i==j) ? 10000.f : dphi*dphi + deta*deta;
+      return (i==j) ? inffix : dphi*dphi + deta*deta;
     }
     
     
     // valid if we are sure dphi < pi and i!=j
-    float safeDist1(unsigned int i, unsigned int j) const {
+    FixPoint safeDist1(unsigned int i, unsigned int j) const {
       auto dphi = phi(i) - phi(j);
       auto deta = eta(i) - eta(j);
       return dphi*dphi + deta*deta;
@@ -120,8 +138,8 @@ namespace opti_details {
     
     
     // valid if we are sure dphi > pi
-    float safeDist2(unsigned int i, unsigned int j) const {
-      auto dphi = twopif - std::abs(phi(i) - phi(j));
+    FixPoint safeDist2(unsigned int i, unsigned int j) const {
+      auto dphi = twopifix - std::abs(phi(i) - phi(j));
       auto deta = eta(i) - eta(j);
       // can never be i==j
       return dphi*dphi + deta*deta;
@@ -359,6 +377,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   // too few tiles to optize deltaphi...
   if (_n_tiles_phi<5)   return _minheap_faster_tiled_N2_cluster();
 
+  auto R2fix = fp2fix(_R2);
 
 
   // OTiles tiles(_tiles_eta_min,_tiles_eta_max, _tiles_ieta_max-_tiles_ieta_min+1, _n_tiles_phi);
@@ -416,10 +435,10 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   for (unsigned int i = 0; i!=n; ++i) {
     auto k = mtls[index[i]];
     indexNN[i] = k; // point to itlsef...
-    j.eta(k) = _jets[i].rap();
-    j.phi(k) = _jets[i].phi_02pi();
+    j.eta(k) = fp2fixS(_jets[i].rap());
+    j.phi(k) = fp2fix(_jets[i].phi_02pi());
     j.kt2(k) = chop(jet_scale_for_algorithm(_jets[i]));
-    j.NN_dist(k) = _R2;
+    j.NN_dist(k) = R2fix;
     j.jet_index(k)=i;
     j.tile_index(k)=index[i];
     ++mtls[index[i]];
@@ -478,7 +497,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   // define it locally
   auto bj_diJ = [&](unsigned int jet)->float  {
     // NOLOC exits and point to a very large kt2! 
-    return protojets.NN_dist(jet)*std::min(protojets.kt2(jet),protojets.kt2(indexNN[protojets.NN(jet)])); 
+    return fix2f(protojets.NN_dist(jet))*std::min(protojets.kt2(jet),protojets.kt2(indexNN[protojets.NN(jet)])); 
     // auto kt2 = jet->kt2;
     // kt2 = (jet->NN != NOLOC) ? std::min(kt2,protojets[indexNN[jet->NN]].kt2) : kt2; 
     // return jet->NN_dist * kt2;
@@ -743,10 +762,10 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       }
 
        auto & j = protojets;
-       j.eta(kB) = eta;
-       j.phi(kB) = phi;
+       j.eta(kB) = fp2fixS(eta);
+       j.phi(kB) = fp2fix(phi);
        j.kt2(kB) = chop(jet_scale_for_algorithm(_jets[nn]));
-       j.NN_dist(kB) = _R2;
+       j.NN_dist(kB) = R2fix;
        j.NN(kB) = NOLOC;
        j.jet_index(kB)=nn;
        j.tile_index(kB)=tin;
@@ -796,7 +815,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	    // see if jetI had jetA or jetB as a NN -- if so recalculate the NN  (jiB is eihter ok or NOLOC+1)
 	    if unlikely(protojets.NN(iI) == jiA || (protojets.NN(iI) == jiB)) {
 		// now go over tiles that are neighbours of I (include own tile)
-		float ndist=_R2;
+		auto ndist=R2fix;
 		auto nind = NOLOC;
                 // kk maybe a guard row!
 		auto irow = protojets.tile_index(iI) -tiles.rsize-1;
@@ -820,7 +839,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 		  else  // central row
 		    for (auto ii = irow; ii!=irow+3; ++ii) { // columns
 		      for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
-			auto dist = protojets.safeDist(iI,iJ);
+			auto dist = protojets.safeDist(iI,iJ);  // iJ can be == iI ...
 			nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
 			ndist = (dist<ndist) ? dist : ndist;
 		      }
@@ -845,9 +864,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 		protojets.NN_dist(iI) = ndist;
 		protojets.NN(iI)   = nind;
 		// label jetI as needing heap action...
-                mod=true;
-		jets_for_minheap.push_back(iI);
-		
+                mod=true;		
 	      } // end JetI NN recomputation
 	    
 	    // check whether new jetB is closer than jetI's current NN and
@@ -856,22 +873,25 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	    if likely(paired &!isB) {
 		auto dist = protojets.dist(iI,kB);
 		if unlikely(dist < protojets.NN_dist(iI)) {
-			protojets.NN_dist(iI) = dist;
-			protojets.NN(iI) = protojets.jet_index(kB);
-			// label jetI as needing heap action...
-			if (!mod) jets_for_minheap.push_back(iI);
+		    protojets.NN_dist(iI) = dist;
+		    protojets.NN(iI) = protojets.jet_index(kB);
+		    // label jetI as needing heap action...
+		    mod = true;
 		  }
 		if (dist < protojets.NN_dist(kB)) {
-		      protojets.NN_dist(kB)=dist;;
-		      protojets.NN(kB) = protojets.jet_index(iI);
+		  protojets.NN_dist(kB)=dist;;
+		  protojets.NN(kB) = protojets.jet_index(iI);
 		}
 	      }  // end jetB update
-	    
-	  }
-	}
+
+	    if (mod) jets_for_minheap.push_back(iI);	    
+
+	  } // end iI loop
+	} // end kk loop
 	row+=tiles.rsize;
-      }
-    }
+      } // end "row" loop
+    }   // end tiles loop
+	  
     // clean tag bit
     for (int it=0; it!=ct; ++it) {
       auto row=  ttc[it] - tiles.rsize-1;
