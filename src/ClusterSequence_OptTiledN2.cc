@@ -17,28 +17,39 @@ FASTJET_BEGIN_NAMESPACE      // defined in fastjet/internal/base.hh
 
 namespace opti_details {
   
+  using FixPoint = signed short;
+  constexpr float fp2fix_f = 4096.f;
+  constexpr float fix2fp_f = 1./4096.;
+  constexpr double fp2fix_d = 4096.;
+  constexpr double fix2fp_d = 1./4096.;
+
+  constexpr FixPoint maxfix = 32000;
+
+  constexpr FixPoint fp2fix(float x) { return std::rint(x*fp2fix_f);}
+  constexpr FixPoint fp2fix(double x) { return std::rint(x*fp2fix_d);}
+
   constexpr unsigned short NOWHERE = 62001;
   constexpr float pif=M_PI;
   constexpr float twopif=2*pif;
   
 
   
-  class OTiledJet {
+  class ProtoJet {
   public:
-    explicit OTiledJet(int noloc) : NN(noloc), jet_index(noloc) {}
+    explicit ProtoJet(int noloc) : NN(noloc), jet_index(noloc) {}
     float     eta=100.f, phi=100.f, kt2=1.e26, NN_dist=10000.f;
     unsigned short NN=62005; 
     unsigned short jet_index=62005, tile_index=NOWHERE;
   };
 
   inline
-  OTiledJet* minit(unsigned int sz,  unsigned int noloc) {
-      OTiledJet* jets= ((OTiledJet*)(::malloc(sz*sizeof(OTiledJet))) );
+  ProtoJet* minit(unsigned int sz,  unsigned int noloc) {
+      ProtoJet* jets= ((ProtoJet*)(::malloc(sz*sizeof(ProtoJet))) );
       unsigned char * cj = (unsigned char *)(jets);
-      auto last = cj+sz*sizeof(OTiledJet);
+      auto last = cj+sz*sizeof(ProtoJet);
       auto half = cj + (last-cj)/2;
-      jets[0]=OTiledJet(noloc);
-      auto start = cj+sizeof(OTiledJet);
+      jets[0]=ProtoJet(noloc);
+      auto start = cj+sizeof(ProtoJet);
       auto bs = start-cj;
       while (start<half) {
         ::memcpy(start,cj,bs);
@@ -51,15 +62,15 @@ namespace opti_details {
   }
   
   // AOS
-  class OJetsAOS {
+  class PrJetsAOS {
   public:
     using Itype = unsigned short;
     
-    OJetsAOS(unsigned int sz,  unsigned int noloc) : 
+    PrJetsAOS(unsigned int sz,  unsigned int noloc) : 
       jets(minit(sz,noloc)), s(sz) {
     }
     
-    ~OJetsAOS() {
+    ~PrJetsAOS() {
       free(jets);
     }
 
@@ -80,7 +91,7 @@ namespace opti_details {
     Itype & tile_index(int i) { return jets[i].tile_index;}
     
     
-    OTiledJet const & back() const { return jets[s-1];}
+    ProtoJet const & back() const { return jets[s-1];}
 
     
     float dist(unsigned int i, unsigned int j) const {
@@ -118,19 +129,19 @@ namespace opti_details {
     
     
     void move(unsigned int j, unsigned int i) {
-       ::memcpy(&jets[i],&jets[j],sizeof(OTiledJet));
-       ::memcpy(&jets[j],&back(),sizeof(OTiledJet));
+       ::memcpy(&jets[i],&jets[j],sizeof(ProtoJet));
+       ::memcpy(&jets[j],&back(),sizeof(ProtoJet));
       // jets[i]=jets[j]; jets[j]=back();
     }
     
     void reset (unsigned int i) {
-      ::memcpy(&jets[i],&back(),sizeof(OTiledJet));
+      ::memcpy(&jets[i],&back(),sizeof(ProtoJet));
       // jets[i]=back();
     }
     
     
-    void copy (OJetsAOS const & o, unsigned int j, unsigned int i) {
-      ::memcpy(&jets[i],&o.jets[j],sizeof(OTiledJet));
+    void copy (PrJetsAOS const & o, unsigned int j, unsigned int i) {
+      ::memcpy(&jets[i],&o.jets[j],sizeof(ProtoJet));
       // jets[i] = o.jets[j];
     }
     
@@ -138,24 +149,24 @@ namespace opti_details {
       copy(*this, j, i);
     }
     
-    void swap (OJetsAOS & o) {
+    void swap (PrJetsAOS & o) {
       std::swap(jets,o.jets);
       std::swap(s,o.s);
     }
   
   private:
     
-    OTiledJet * jets;
+    ProtoJet * jets;
     unsigned int s;
   };
   
   
   // SOA
-  class OJetsSOA {
+  class PrJetsSOA {
   public:
     using Itype = unsigned short;
     
-    OJetsSOA(unsigned int sz,  unsigned int noloc) : 
+    PrJetsSOA(unsigned int sz,  unsigned int noloc) : 
       veta(sz,100.f), vphi(sz,100.f), vkt2(sz,1.e26), vNN_dist(sz,10000.f),
       vNN(sz,noloc), vjet_index(sz,noloc), vtile_index(sz,NOWHERE),
        s(sz) {}
@@ -233,7 +244,7 @@ namespace opti_details {
     }
 
     
-    void copy (OJetsSOA const & o, unsigned int j, unsigned int i) {
+    void copy (PrJetsSOA const & o, unsigned int j, unsigned int i) {
       eta(i)=o.eta(j);
       phi(i)=o.phi(j);
       kt2(i)=o.kt2(j); 
@@ -247,7 +258,7 @@ namespace opti_details {
       copy(*this, j, i);
     }
     
-    void swap (OJetsSOA & o) {
+    void swap (PrJetsSOA & o) {
       veta.swap(o.veta);
       vphi.swap(o.vphi);
       vkt2.swap(o.vkt2); 
@@ -265,7 +276,7 @@ private:
     unsigned int s;
   };
   
-  using  OJets = OJetsAOS;
+  using  PrJets = PrJetsAOS;
   
   struct OTiles {
     using Itype = unsigned int; 
@@ -396,12 +407,12 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   
   
   int NOLOC=2*n;
-  OJets briefjets(bsize+1,NOLOC);
+  PrJets protojets(bsize+1,NOLOC);
   unsigned short indexNN[2*n+1]; // redirection of NN s....
   indexNN[NOLOC]=bsize;  // dummy place for vectorization
   
   // fil with real jets
-  auto & j = briefjets;
+  auto & j = protojets;
   for (unsigned int i = 0; i!=n; ++i) {
     auto k = mtls[index[i]];
     indexNN[i] = k; // point to itlsef...
@@ -415,7 +426,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   }
   
   // for (unsigned int k=0; k!=_tiles.size(); ++k) assert(mtls[k]==_tiles[k].first+_tiles[k].nJets);
-  // for (int i = 0; i!=n; ++i) assert( briefjets[i].tile_index!=NOWHERE);  
+  // for (int i = 0; i!=n; ++i) assert( protojets[i].tile_index!=NOWHERE);  
   
   
   // fix indexing
@@ -435,9 +446,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   
   /*
   auto verify = [&]() {
-    assert(briefjets.kt2[indexNN[NOLOC]]>_R2);
-    assert(briefjets.jet_index.back()==NOLOC);
-    assert(briefjets.NN.back()==NOLOC);
+    assert(protojets.kt2[indexNN[NOLOC]]>_R2);
+    assert(protojets.jet_index.back()==NOLOC);
+    assert(protojets.NN.back()==NOLOC);
 
     for (unsigned int ti=0; ti<tiles.size(); ++ti) {
       assert(!tiles.tag[ti]);
@@ -452,9 +463,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       for (int iI = tiles.first[ti]; iI != tiles.last[ti]; ++iI) {
         auto tt = (ti>=tiles.head) ? ti : ti+tiles.goff;
         tt	= (tt<tiles.tail) ? tt : ti-tiles.goff;
-	assert(briefjets.tile_index[iI]==tt);
-        assert(indexNN[briefjets.jet_index[iI]]==iI);
-        assert(briefjets.NN_dist[iI]< 10000.f);
+	assert(protojets.tile_index[iI]==tt);
+        assert(indexNN[protojets.jet_index[iI]]==iI);
+        assert(protojets.NN_dist[iI]< 10000.f);
       }
     }
   };
@@ -467,9 +478,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   // define it locally
   auto bj_diJ = [&](unsigned int jet)->float  {
     // NOLOC exits and point to a very large kt2! 
-    return briefjets.NN_dist(jet)*std::min(briefjets.kt2(jet),briefjets.kt2(indexNN[briefjets.NN(jet)])); 
+    return protojets.NN_dist(jet)*std::min(protojets.kt2(jet),protojets.kt2(indexNN[protojets.NN(jet)])); 
     // auto kt2 = jet->kt2;
-    // kt2 = (jet->NN != NOLOC) ? std::min(kt2,briefjets[indexNN[jet->NN]].kt2) : kt2; 
+    // kt2 = (jet->NN != NOLOC) ? std::min(kt2,protojets[indexNN[jet->NN]].kt2) : kt2; 
     // return jet->NN_dist * kt2;
   };
 
@@ -481,9 +492,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     // first do it on this tile
     for (auto jA=tiles.first[k]; jA!=tiles.last[k]; ++jA) {
       for (auto jB =tiles.first[k]; jB!=jA; ++jB) {
-	auto dist = briefjets.safeDist1(jA,jB);
-	if (dist < briefjets.NN_dist(jA)) {briefjets.NN_dist(jA) = dist; briefjets.NN(jA) = briefjets.jet_index(jB);}
-	if (dist < briefjets.NN_dist(jB)) {briefjets.NN_dist(jB) = dist; briefjets.NN(jB) = briefjets.jet_index(jA);}
+	auto dist = protojets.safeDist1(jA,jB);
+	if (dist < protojets.NN_dist(jA)) {protojets.NN_dist(jA) = dist; protojets.NN(jA) = protojets.jet_index(jB);}
+	if (dist < protojets.NN_dist(jB)) {protojets.NN_dist(jB) = dist; protojets.NN(jB) = protojets.jet_index(jA);}
       }
     }
     // then do it for LH tiles (3 on top + one left
@@ -491,9 +502,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       for (auto kk = (k-tiles.rsize)-1; kk!=(k-tiles.rsize)+2; ++kk) {
 	for (auto jA=tiles.first[k]; jA!=tiles.last[k]; ++jA) {
 	  for (auto jB=tiles.first[kk]; jB!=tiles.last[kk]; ++jB) {
-	    auto dist = briefjets.safeDist2(jA,jB);
-	    if (dist < briefjets.NN_dist(jA)) {briefjets.NN_dist(jA) = dist; briefjets.NN(jA) = briefjets.jet_index(jB);}
-	    if (dist < briefjets.NN_dist(jB)) {briefjets.NN_dist(jB) = dist; briefjets.NN(jB) = briefjets.jet_index(jA);}
+	    auto dist = protojets.safeDist2(jA,jB);
+	    if (dist < protojets.NN_dist(jA)) {protojets.NN_dist(jA) = dist; protojets.NN(jA) = protojets.jet_index(jB);}
+	    if (dist < protojets.NN_dist(jB)) {protojets.NN_dist(jB) = dist; protojets.NN(jB) = protojets.jet_index(jA);}
 	  }
 	}
       }
@@ -501,9 +512,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       for (auto kk = (k-tiles.rsize)-1; kk!=(k-tiles.rsize)+2; ++kk) {
 	for (auto jA=tiles.first[k]; jA!=tiles.last[k]; ++jA) {
 	  for (auto jB=tiles.first[kk]; jB!=tiles.last[kk]; ++jB) {
-	    auto dist = briefjets.safeDist1(jA,jB);
-	    if (dist < briefjets.NN_dist(jA)) {briefjets.NN_dist(jA) = dist; briefjets.NN(jA) = briefjets.jet_index(jB);}
-	    if (dist < briefjets.NN_dist(jB)) {briefjets.NN_dist(jB) = dist; briefjets.NN(jB) = briefjets.jet_index(jA);}
+	    auto dist = protojets.safeDist1(jA,jB);
+	    if (dist < protojets.NN_dist(jA)) {protojets.NN_dist(jA) = dist; protojets.NN(jA) = protojets.jet_index(jB);}
+	    if (dist < protojets.NN_dist(jB)) {protojets.NN_dist(jB) = dist; protojets.NN(jB) = protojets.jet_index(jA);}
 	  }
 	}
       }
@@ -511,9 +522,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     auto kk = k-1;
     for (auto jA=tiles.first[k]; jA!=tiles.last[k]; ++jA) {
       for (auto jB=tiles.first[kk]; jB!=tiles.last[kk]; ++jB) {
-	auto dist = briefjets.safeDist1(jA,jB);
-	if (dist < briefjets.NN_dist(jA)) {briefjets.NN_dist(jA) = dist; briefjets.NN(jA) = briefjets.jet_index(jB);}
-	if (dist < briefjets.NN_dist(jB)) {briefjets.NN_dist(jB) = dist; briefjets.NN(jB) = briefjets.jet_index(jA);}
+	auto dist = protojets.safeDist1(jA,jB);
+	if (dist < protojets.NN_dist(jA)) {protojets.NN_dist(jA) = dist; protojets.NN(jA) = protojets.jet_index(jB);}
+	if (dist < protojets.NN_dist(jB)) {protojets.NN_dist(jB) = dist; protojets.NN(jB) = protojets.jet_index(jA);}
       }
     }
     // no need to do it for RH tiles, since they are implicitly done
@@ -538,7 +549,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   int history_location = n-1;
 
   auto removeFromTile = [&](unsigned short k) {
-    auto ti = briefjets.tile_index(k);
+    auto ti = protojets.tile_index(k);
     // assert(ti>=tiles.head && ti<tiles.tail);
     // assert(tiles.last[ti]>tiles.first[ti]);
     // will move last to k...
@@ -547,25 +558,25 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     // fix gards
     if (ti<tiles.head2) --tiles.last[ti+tiles.goff]; 
     if (ti>=tiles.tailN) --tiles.last[ti-tiles.goff]; 
-    // assert(briefjets[l].tile_index==ti);
+    // assert(protojets[l].tile_index==ti);
     // assert(k<=l);
     // assert(k>=tiles.first[ti]);
     if (l!=k) {
-      // assert(indexNN[briefjets.jet_index[l]] == l);
-      briefjets.copy(l,k);
+      // assert(indexNN[protojets.jet_index[l]] == l);
+      protojets.copy(l,k);
       minheap.update(k,minheap[l]);
-      indexNN[briefjets.jet_index(k)] = k;
+      indexNN[protojets.jet_index(k)] = k;
     } 
-    briefjets.reset(l);
+    protojets.reset(l);
     minheap.remove(l);
     //assert(minheap[l]>1.e26);
-    // if (l!=k) assert(briefjets.tile_index[k]==ti);
+    // if (l!=k) assert(protojets.tile_index[k]==ti);
   };
 
 
   auto compactify  = [&]() {
     // compactify the array
-    OJets newBriefjets(bsize+1,NOLOC);  // can be made smaller...
+    PrJets newProtojets(bsize+1,NOLOC);  // can be made smaller...
 
     unsigned int i=0; unsigned int t=tiles.head;
     for (unsigned int ip=0; ip!=tiles.nPhi; ++ip) {
@@ -578,12 +589,12 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	// copy
 	auto ki=tiles.first[t];
 	for (auto k=fo; k!=fo+sz; ++k) {
-	  newBriefjets.copy(briefjets,k,ki);
-	  indexNN[newBriefjets.jet_index(ki)]=ki;
+	  newProtojets.copy(protojets,k,ki);
+	  indexNN[newProtojets.jet_index(ki)]=ki;
 	  ki++;
 	}
 	// zero
-	// for (auto k=tiles.last[t]; k!=i; ++k) briefjets[k]=OTiledJet();
+	// for (auto k=tiles.last[t]; k!=i; ++k) protojets[k]=ProtoJet();
 	++t;
       } 
       //skip the two eta gards
@@ -592,7 +603,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     }
     assert(i<=bsize);
     assert((t-1)==tiles.size()-tiles.rsize);
-    newBriefjets.swap(briefjets);
+    newProtojets.swap(protojets);
     bsize=i;
     indexNN[NOLOC]=bsize;
 
@@ -629,8 +640,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     auto diJ_min = minheap.minval() *_invR2;
     unsigned short kA = minheap.minloc();
 
-    auto tiA = briefjets.tile_index(kA);
-    auto jiA = briefjets.jet_index(kA);
+    auto tiA = protojets.tile_index(kA);
+    auto jiA = protojets.jet_index(kA);
 
 
     //assert(kA!=NOWHERE);
@@ -643,12 +654,12 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     history_location++;
 
 
-    auto jiB = briefjets.NN(kA);
+    auto jiB = protojets.NN(kA);
     bool paired = jiB!=NOLOC;
     auto kB = paired ? indexNN[jiB] : NOWHERE;
     if (!paired) ++jiB; // trick so that jiB is not NOLOC....
   
-    unsigned int otiB = paired ? briefjets.tile_index(kB) : NOWHERE;
+    unsigned int otiB = paired ? protojets.tile_index(kB) : NOWHERE;
 
     // tiles where modified jets lies
     int ct=1;
@@ -683,14 +694,14 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       if (tin==otiB) { // in place at kB
 	inplace=true;
       } else if (tin==tiA) { // in place at kA
-	std::swap(kA,kB); tiA = briefjets.tile_index(kA); jiA = briefjets.jet_index(kA);  jiB = briefjets.jet_index(kB); 
+	std::swap(kA,kB); tiA = protojets.tile_index(kA); jiA = protojets.jet_index(kA);  jiB = protojets.jet_index(kB); 
 	inplace=true;
       } else {  // in a different tile (if there is space!)
 	ttc[ct++] = tin;  // a new tile!
 	
 	if (mtls[tin]==tiles.last[tin]) {
 	  std::cout << "FAILED " << tin << " " << mtls[tin] 
-		    << " "  << briefjets.tile_index(kA) << " "  << briefjets.tile_index(kB) << std::endl;
+		    << " "  << protojets.tile_index(kA) << " "  << protojets.tile_index(kB) << std::endl;
 	  // will need to re-adjust everything
 	  compactify();
 	  kA = indexNN[jiA];
@@ -731,7 +742,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
       }
 
-       auto & j = briefjets;
+       auto & j = protojets;
        j.eta(kB) = eta;
        j.phi(kB) = phi;
        j.kt2(kB) = chop(jet_scale_for_algorithm(_jets[nn]));
@@ -780,37 +791,37 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	  for (auto iI = tiles.first[kk]; iI !=tiles.last[kk]; ++iI) {
 	    bool mod=false;
             bool isB = iI==kB;
-	    //  if (briefjets.tile_index[iI]>tsize) std::cout << "??? k " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << briefjets.jet_index[iI] << " " << briefjets.NN[iI] << std::endl;
-            // if (briefjets.jet_index[iI]>_jets.size()) std::cout << "??? j " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << briefjets.jet_index[iI] << " " << briefjets.NN[iI] << std::endl;
+	    //  if (protojets.tile_index[iI]>tsize) std::cout << "??? k " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << protojets.jet_index[iI] << " " << protojets.NN[iI] << std::endl;
+            // if (protojets.jet_index[iI]>_jets.size()) std::cout << "??? j " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << protojets.jet_index[iI] << " " << protojets.NN[iI] << std::endl;
 	    // see if jetI had jetA or jetB as a NN -- if so recalculate the NN  (jiB is eihter ok or NOLOC+1)
-	    if unlikely(briefjets.NN(iI) == jiA || (briefjets.NN(iI) == jiB)) {
+	    if unlikely(protojets.NN(iI) == jiA || (protojets.NN(iI) == jiB)) {
 		// now go over tiles that are neighbours of I (include own tile)
 		float ndist=_R2;
 		auto nind = NOLOC;
                 // kk maybe a guard row!
-		auto irow = briefjets.tile_index(iI) -tiles.rsize-1;
+		auto irow = protojets.tile_index(iI) -tiles.rsize-1;
 		for (int ir=0;ir!=3;++ir) {  // rows
 		  if (irow<tiles.rsize || irow>tiles.tail) // deltaphi>pi 
 		    for (auto ii = irow; ii!=irow+3; ++ii) { // columns
 		      for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
-			auto dist = briefjets.safeDist2(iI,iJ);
-			nind =  (dist<ndist) ?  briefjets.jet_index(iJ) : nind;
+			auto dist = protojets.safeDist2(iI,iJ);
+			nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
 			ndist = (dist<ndist) ? dist : ndist;
 		      }
 		    }
 		  else if(ir!=1)
 		    for (auto ii = irow; ii!=irow+3; ++ii) { // columns
 		      for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
-			auto dist = briefjets.safeDist1(iI,iJ);
-			nind =  (dist<ndist) ?  briefjets.jet_index(iJ) : nind;
+			auto dist = protojets.safeDist1(iI,iJ);
+			nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
 			ndist = (dist<ndist) ? dist : ndist;
 		      }
 		    }
 		  else  // central row
 		    for (auto ii = irow; ii!=irow+3; ++ii) { // columns
 		      for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
-			auto dist = briefjets.safeDist(iI,iJ);
-			nind =  (dist<ndist) ?  briefjets.jet_index(iJ) : nind;
+			auto dist = protojets.safeDist(iI,iJ);
+			nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
 			ndist = (dist<ndist) ? dist : ndist;
 		      }
 		    }
@@ -822,17 +833,17 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 		  
 		  //for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange (when minloc pattern will vectorize!): they are all contiguous in a row. not all valid
 		  //for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
-		  // auto dist = briefjets.dist(iI,iJ);
-		  //	nind =  (dist<ndist) ?  briefjets.jet_index(iJ) : nind;
+		  // auto dist = protojets.dist(iI,iJ);
+		  //	nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
 		  //	ndist = (dist<ndist) ? dist : ndist;
-		  // if (dist < briefjets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
-		  // if (briefjets.jet_index[iI]>_jets.size()) std::cout << "??? d " << dist << " " << briefjets.NN_dist[iI] << " " << briefjets.jet_index[iJ] << std::endl;
-		  // briefjets.NN_dist[iI] = dist; briefjets.NN[iI] = briefjets.jet_index[iJ];
+		  // if (dist < protojets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
+		  // if (protojets.jet_index[iI]>_jets.size()) std::cout << "??? d " << dist << " " << protojets.NN_dist[iI] << " " << protojets.jet_index[iJ] << std::endl;
+		  // protojets.NN_dist[iI] = dist; protojets.NN[iI] = protojets.jet_index[iJ];
 		  //}
 
 
-		briefjets.NN_dist(iI) = ndist;
-		briefjets.NN(iI)   = nind;
+		protojets.NN_dist(iI) = ndist;
+		protojets.NN(iI)   = nind;
 		// label jetI as needing heap action...
                 mod=true;
 		jets_for_minheap.push_back(iI);
@@ -843,16 +854,16 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	    // if jetI is closer than jetB's current (evolving) nearest
 	    // neighbour. Where relevant update things
 	    if likely(paired &!isB) {
-		auto dist = briefjets.dist(iI,kB);
-		if unlikely(dist < briefjets.NN_dist(iI)) {
-			briefjets.NN_dist(iI) = dist;
-			briefjets.NN(iI) = briefjets.jet_index(kB);
+		auto dist = protojets.dist(iI,kB);
+		if unlikely(dist < protojets.NN_dist(iI)) {
+			protojets.NN_dist(iI) = dist;
+			protojets.NN(iI) = protojets.jet_index(kB);
 			// label jetI as needing heap action...
 			if (!mod) jets_for_minheap.push_back(iI);
 		  }
-		if (dist < briefjets.NN_dist(kB)) {
-		      briefjets.NN_dist(kB)=dist;;
-		      briefjets.NN(kB) = briefjets.jet_index(iI);
+		if (dist < protojets.NN_dist(kB)) {
+		      protojets.NN_dist(kB)=dist;;
+		      protojets.NN(kB) = protojets.jet_index(iI);
 		}
 	      }  // end jetB update
 	    
