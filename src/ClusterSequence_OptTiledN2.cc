@@ -51,7 +51,7 @@ namespace opti_details {
   FixPoint prod2(FixPoint a, FixPoint b) {
     int x = a; int y = b;
     int res = x*x+y*y;
-    return res/4096;  // ok we shall shift and round)
+    return std::min(int(maxfix),res>>12);  // ok we shall shift and round)
   }
   
   class ProtoJet {
