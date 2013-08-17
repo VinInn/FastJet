@@ -48,7 +48,11 @@ namespace opti_details {
   constexpr FixPoint pifix=  M_PI*fp2fix_d + 0.5;
   constexpr FixPoint twopifix = 2*M_PI*fp2fix_d + 0.5;
   
-
+  FixPoint prod2(FixPoint a, FixPoint b) {
+    int x = a; int y = b;
+    int res = x*x+y*y;
+    return res/4096;  // ok we shall shift and round)
+  }
   
   class ProtoJet {
   public:
@@ -117,7 +121,7 @@ namespace opti_details {
       auto deta = eta(i) - eta(j);
       dphi =  (dphi > pifix) ? twopifix - dphi : dphi;
       // return dphi*dphi + deta*deta;
-      return (i==j) ? inffix : dphi*dphi + deta*deta;
+      return (i==j) ? inffix : prod2(dphi,deta);
     }
     
   
@@ -125,7 +129,7 @@ namespace opti_details {
     FixPoint safeDist(unsigned int i, unsigned int j) const {
       auto dphi = phi(i) - phi(j);
       auto deta = eta(i) - eta(j);
-      return (i==j) ? inffix : dphi*dphi + deta*deta;
+      return (i==j) ? inffix : prod2(dphi,deta);
     }
     
     
@@ -133,7 +137,7 @@ namespace opti_details {
     FixPoint safeDist1(unsigned int i, unsigned int j) const {
       auto dphi = phi(i) - phi(j);
       auto deta = eta(i) - eta(j);
-      return dphi*dphi + deta*deta;
+      return prod2(dphi,deta);
     }
     
     
@@ -142,7 +146,7 @@ namespace opti_details {
       auto dphi = twopifix - std::abs(phi(i) - phi(j));
       auto deta = eta(i) - eta(j);
       // can never be i==j
-      return dphi*dphi + deta*deta;
+      return prod2(dphi,deta);
     }
     
     
