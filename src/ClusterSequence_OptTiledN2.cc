@@ -50,9 +50,10 @@ namespace opti_details {
   // constexpr FixPoint twopifix = fp2fix(2*pif);
   constexpr FixPoint pifix=  M_PI*fp2fix_d + 0.5;
   constexpr FixPoint twopifix = 2*M_PI*fp2fix_d + 0.5;
+  constexpr int pifixI =  M_PI*fp2fix_d + 0.5;
+  constexpr int twopifixI = 2*M_PI*fp2fix_d + 0.5;
   
-  UFixPoint prod2(FixPoint a, FixPoint b) {
-    int x = a; int y = b;
+  inline UFixPoint prod2(int x, int y) {
     int res = x*x+y*y + 2048;
     return res>>12;
   }
@@ -120,9 +121,9 @@ namespace opti_details {
 
     
     UFixPoint dist(unsigned int i, unsigned int j) const {
-      auto dphi = std::abs(phi(i) - phi(j));
-      auto deta = eta(i) - eta(j);
-      dphi =  (dphi > pifix) ? twopifix - dphi : dphi;
+      int dphi = std::abs(phi(i) - phi(j));
+      int deta = eta(i) - eta(j);
+      dphi =  (dphi > pifixI) ? twopifixI - dphi : dphi;
       // return dphi*dphi + deta*deta;
       return (i==j) ? inffix : prod2(dphi,deta);
     }
@@ -130,24 +131,24 @@ namespace opti_details {
   
     // valid if we are sure dphi < pi
     UFixPoint safeDist(unsigned int i, unsigned int j) const {
-      auto dphi = phi(i) - phi(j);
-      auto deta = eta(i) - eta(j);
+      int dphi = phi(i) - phi(j);
+      int deta = eta(i) - eta(j);
       return (i==j) ? inffix : prod2(dphi,deta);
     }
     
     
     // valid if we are sure dphi < pi and i!=j
     UFixPoint safeDist1(unsigned int i, unsigned int j) const {
-      auto dphi = phi(i) - phi(j);
-      auto deta = eta(i) - eta(j);
+      int dphi = phi(i) - phi(j);
+      int deta = eta(i) - eta(j);
       return prod2(dphi,deta);
     }
     
     
     // valid if we are sure dphi > pi
     UFixPoint safeDist2(unsigned int i, unsigned int j) const {
-      auto dphi = twopifix - std::abs(phi(i) - phi(j));
-      auto deta = eta(i) - eta(j);
+      int dphi = twopifixI - std::abs(phi(i) - phi(j));
+      int deta = eta(i) - eta(j);
       // can never be i==j
       return prod2(dphi,deta);
     }
