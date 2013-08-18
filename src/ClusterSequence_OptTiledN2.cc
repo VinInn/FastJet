@@ -18,12 +18,14 @@ FASTJET_BEGIN_NAMESPACE      // defined in fastjet/internal/base.hh
 namespace opti_details {
   
   using FixPoint = signed short;
+  using UFixPoint = unsigned short;
+
   constexpr float fp2fix_f = 4096.f;
   constexpr float fix2fp_f = 1./4096.;
   constexpr double fp2fix_d = 4096.;
   constexpr double fix2fp_d = 1./4096.;
 
-  constexpr FixPoint inffix = 32700;
+  constexpr UFixPoint inffix = 62000;
   constexpr FixPoint maxfix = 32000;
   constexpr double maxeta_d = 7.2;
   constexpr float maxeta_f = 7.2;
@@ -38,6 +40,7 @@ namespace opti_details {
 
 
   constexpr float fix2f(FixPoint x) { return x*fix2fp_f;}
+  constexpr float fix2f(UFixPoint x) { return x*fix2fp_f;}
 
   constexpr unsigned short NOWHERE = 62001;
   constexpr float pif=M_PI;
@@ -48,10 +51,10 @@ namespace opti_details {
   constexpr FixPoint pifix=  M_PI*fp2fix_d + 0.5;
   constexpr FixPoint twopifix = 2*M_PI*fp2fix_d + 0.5;
   
-  FixPoint prod2(FixPoint a, FixPoint b) {
+  UFixPoint prod2(FixPoint a, FixPoint b) {
     int x = a; int y = b;
-    int res = x*x+y*y;
-    return std::min(int(maxfix),res>>12);  // ok we shall shift and round)
+    int res = x*x+y*y + 2048;
+    return res>>12;
   }
   
   class ProtoJet {
@@ -59,7 +62,7 @@ namespace opti_details {
     explicit ProtoJet(int noloc) : NN(noloc), jet_index(noloc) {}
     float kt2=1.e26; 
     FixPoint  eta=maxfix, phi=maxfix; 
-    FixPoint  NN_dist=inffix;
+    UFixPoint  NN_dist=inffix;
     unsigned short NN=62005; 
     unsigned short jet_index=62005, tile_index=NOWHERE;
   };
@@ -103,8 +106,8 @@ namespace opti_details {
     FixPoint & eta(int i) { return jets[i].eta;}
     FixPoint phi(int i) const { return jets[i].phi;}
     FixPoint & phi(int i) { return jets[i].phi;}
-    FixPoint NN_dist(int i) const { return jets[i].NN_dist;}
-    FixPoint & NN_dist(int i) { return jets[i].NN_dist;}
+    UFixPoint NN_dist(int i) const { return jets[i].NN_dist;}
+    UFixPoint & NN_dist(int i) { return jets[i].NN_dist;}
     Itype NN(int i) const { return jets[i].NN;}
     Itype & NN(int i) { return jets[i].NN;}
     Itype jet_index(int i) const { return jets[i].jet_index;}
@@ -116,7 +119,7 @@ namespace opti_details {
     ProtoJet const & back() const { return jets[s-1];}
 
     
-    FixPoint dist(unsigned int i, unsigned int j) const {
+    UFixPoint dist(unsigned int i, unsigned int j) const {
       auto dphi = std::abs(phi(i) - phi(j));
       auto deta = eta(i) - eta(j);
       dphi =  (dphi > pifix) ? twopifix - dphi : dphi;
@@ -126,7 +129,7 @@ namespace opti_details {
     
   
     // valid if we are sure dphi < pi
-    FixPoint safeDist(unsigned int i, unsigned int j) const {
+    UFixPoint safeDist(unsigned int i, unsigned int j) const {
       auto dphi = phi(i) - phi(j);
       auto deta = eta(i) - eta(j);
       return (i==j) ? inffix : prod2(dphi,deta);
@@ -134,7 +137,7 @@ namespace opti_details {
     
     
     // valid if we are sure dphi < pi and i!=j
-    FixPoint safeDist1(unsigned int i, unsigned int j) const {
+    UFixPoint safeDist1(unsigned int i, unsigned int j) const {
       auto dphi = phi(i) - phi(j);
       auto deta = eta(i) - eta(j);
       return prod2(dphi,deta);
@@ -142,7 +145,7 @@ namespace opti_details {
     
     
     // valid if we are sure dphi > pi
-    FixPoint safeDist2(unsigned int i, unsigned int j) const {
+    UFixPoint safeDist2(unsigned int i, unsigned int j) const {
       auto dphi = twopifix - std::abs(phi(i) - phi(j));
       auto deta = eta(i) - eta(j);
       // can never be i==j
