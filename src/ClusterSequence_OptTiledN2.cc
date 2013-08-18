@@ -193,19 +193,19 @@ namespace opti_details {
     using Itype = unsigned short;
     
     PrJetsSOA(unsigned int sz,  unsigned int noloc) : 
-      veta(sz,100.f), vphi(sz,100.f), vkt2(sz,1.e26), vNN_dist(sz,10000.f),
+      vkt2(sz,1.e26f), veta(sz,maxfix), vphi(sz,maxfix), vNN_dist(sz,inffix),
       vNN(sz,noloc), vjet_index(sz,noloc), vtile_index(sz,NOWHERE),
        s(sz) {}
     
     unsigned int size() const { return s;}
-    float eta(int i) const { return veta[i];}
-    float & eta(int i) { return veta[i];}
-    float phi(int i) const { return vphi[i];}
-    float & phi(int i) { return vphi[i];}
     float kt2(int i) const { return vkt2[i];}
     float & kt2(int i) { return vkt2[i];}
-    float NN_dist(int i) const { return vNN_dist[i];}
-    float & NN_dist(int i) { return vNN_dist[i];}
+    FixPoint eta(int i) const { return veta[i];}
+    FixPoint & eta(int i) { return veta[i];}
+    FixPoint phi(int i) const { return vphi[i];}
+    FixPoint & phi(int i) { return vphi[i];}
+    UFixPoint NN_dist(int i) const { return vNN_dist[i];}
+    UFixPoint & NN_dist(int i) { return vNN_dist[i];}
     Itype NN(int i) const { return vNN[i];}
     Itype & NN(int i) { return vNN[i];}
     Itype jet_index(int i) const { return vjet_index[i];}
@@ -215,55 +215,54 @@ namespace opti_details {
     
     
     
-    float dist(unsigned int i, unsigned int j) const {
-      auto dphi = std::abs(phi(i) - phi(j));
-      auto deta = eta(i) - eta(j);
-      dphi =  (dphi > pif) ? twopif - dphi : dphi;
+    UFixPoint dist(unsigned int i, unsigned int j) const {
+      int dphi = std::abs(phi(i) - phi(j));
+      int deta = eta(i) - eta(j);
+      dphi =  (dphi > pifixI) ? twopifixI - dphi : dphi;
       // return dphi*dphi + deta*deta;
-      return (i==j) ? 10000.f : dphi*dphi + deta*deta;
+      return (i==j) ? inffix : prod2(dphi,deta);
     }
     
-    
+  
     // valid if we are sure dphi < pi
-    float safeDist(unsigned int i, unsigned int j) const {
-      auto dphi = phi(i) - phi(j);
-      auto deta = eta(i) - eta(j);
-      return (i==j) ? 10000.f : dphi*dphi + deta*deta;
+    UFixPoint safeDist(unsigned int i, unsigned int j) const {
+      int dphi = phi(i) - phi(j);
+      int deta = eta(i) - eta(j);
+      return (i==j) ? inffix : prod2(dphi,deta);
     }
     
     
     // valid if we are sure dphi < pi and i!=j
-    float safeDist1(unsigned int i, unsigned int j) const {
-      auto dphi = phi(i) - phi(j);
-      auto deta = eta(i) - eta(j);
-      return dphi*dphi + deta*deta;
+    UFixPoint safeDist1(unsigned int i, unsigned int j) const {
+      int dphi = phi(i) - phi(j);
+      int deta = eta(i) - eta(j);
+      return prod2(dphi,deta);
     }
     
     
     // valid if we are sure dphi > pi
-    float safeDist2(unsigned int i, unsigned int j) const {
-      auto dphi = twopif - std::abs(phi(i) - phi(j));
-      auto deta = eta(i) - eta(j);
+    UFixPoint safeDist2(unsigned int i, unsigned int j) const {
+      int dphi = twopifixI - std::abs(phi(i) - phi(j));
+      int deta = eta(i) - eta(j);
       // can never be i==j
-      return dphi*dphi + deta*deta;
+      return prod2(dphi,deta);
     }
-    
-    
+        
     void move(unsigned int j, unsigned int i) {
-      eta(i)=eta(j); eta(j)=100.f;
-      phi(i)=phi(j); phi(j)=100.f;
-      kt2(i)=kt2(j); kt2(j)=1.e26;
-      NN_dist(i)=NN_dist(j);
+      kt2(i)=kt2(j); kt2(j)=1.e26f;
+      eta(i)=eta(j); eta(j)=maxfix;
+      phi(i)=phi(j); phi(j)=maxfix;
+      NN_dist(i)=NN_dist(j);NN_dist(j)=inffix;
       NN(i)=NN(j); NN(j)=vNN.back();
       jet_index(i)= jet_index(j); jet_index(j)=vjet_index.back();
       tile_index(i)= tile_index(j); tile_index(j)=vtile_index.back();
     }
     
     void reset (unsigned int j) {
-      eta(j)=100.f;
-      phi(j)=100.f;
-      kt2(j)=1.e26;
-      NN_dist(j)=10000.f;
+      kt2(j)=1.e26f;
+      eta(j)=maxfix;
+      phi(j)=maxfix;
+      NN_dist(j)=inffix;
       NN(j)=vNN.back();
       jet_index(j)=vjet_index.back();
       tile_index(j)=vtile_index.back();
@@ -271,9 +270,9 @@ namespace opti_details {
 
     
     void copy (PrJetsSOA const & o, unsigned int j, unsigned int i) {
+      kt2(i)=o.kt2(j); 
       eta(i)=o.eta(j);
       phi(i)=o.phi(j);
-      kt2(i)=o.kt2(j); 
       NN_dist(i)=o.NN_dist(j);
       NN(i)=o.NN(j);
       jet_index(i)= o.jet_index(j);
@@ -285,24 +284,27 @@ namespace opti_details {
     }
     
     void swap (PrJetsSOA & o) {
+      vkt2.swap(o.vkt2); 
       veta.swap(o.veta);
       vphi.swap(o.vphi);
-      vkt2.swap(o.vkt2); 
       vNN_dist.swap(o.vNN_dist);
       vNN.swap(o.vNN);
       vjet_index.swap(o.vjet_index);
-      vtile_index.swap(o.vtile_index); 
+      vtile_index.swap(o.vtile_index);
+      std::swap(s,o.s);
     }
     
 private:
     
-    std::vector<float> veta, vphi, vkt2, vNN_dist;
+    std::vector<float> vkt2;
+    std::vector<FixPoint> veta, vphi;
+    std::vector<UFixPoint> vNN_dist;
     std::vector<unsigned short> vNN; 
     std::vector<unsigned short> vjet_index,  vtile_index;
     unsigned int s;
   };
   
-  using  PrJets = PrJetsAOS;
+  using  PrJets = PrJetsSOA;
   
   struct OTiles {
     using Itype = unsigned int; 
