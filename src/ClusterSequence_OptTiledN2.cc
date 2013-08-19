@@ -125,7 +125,7 @@ namespace opti_details {
       int deta = eta(i) - eta(j);
       dphi =  (dphi > pifixI) ? twopifixI - dphi : dphi;
       // return dphi*dphi + deta*deta;
-      return (i==j) ? inffix : prod2(dphi,deta);
+      return prod2(dphi,deta);
     }
     
   
@@ -220,7 +220,7 @@ namespace opti_details {
       int deta = eta(i) - eta(j);
       dphi =  (dphi > pifixI) ? twopifixI - dphi : dphi;
       // return dphi*dphi + deta*deta;
-      return (i==j) ? inffix : prod2(dphi,deta);
+      return prod2(dphi,deta);
     }
     
   
