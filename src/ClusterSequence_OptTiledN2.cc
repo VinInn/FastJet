@@ -26,9 +26,9 @@ namespace opti_details {
   constexpr double fix2fp_d = 1./4096.;
 
   constexpr UFixPoint inffix = 62000;
-  constexpr FixPoint maxfix = 32000;
-  constexpr double maxeta_d = 7.2;
-  constexpr float maxeta_f = 7.2;
+  constexpr FixPoint maxfix = 32500;
+  constexpr double maxeta_d = 7.4;
+  constexpr float maxeta_f = 7.4;
 
 
   // cannot be constexpr!
@@ -62,7 +62,7 @@ namespace opti_details {
   public:
     explicit ProtoJet(int noloc) : NN(noloc), jet_index(noloc) {}
     float kt2=1.e26; 
-    FixPoint  eta=maxfix, phi=maxfix; 
+    FixPoint  eta=maxfix, phi=-maxfix; 
     UFixPoint  NN_dist=inffix;
     unsigned short NN=62005; 
     unsigned short jet_index=62005, tile_index=NOWHERE;
@@ -193,7 +193,7 @@ namespace opti_details {
     using Itype = unsigned short;
     
     PrJetsSOA(unsigned int sz,  unsigned int noloc) : 
-      vkt2(sz,1.e26f), veta(sz,maxfix), vphi(sz,maxfix), vNN_dist(sz,inffix),
+      vkt2(sz,1.e26f), veta(sz,maxfix), vphi(sz,-maxfix), vNN_dist(sz,inffix),
       vNN(sz,noloc), vjet_index(sz,noloc), vtile_index(sz,NOWHERE),
        s(sz) {}
     
@@ -251,7 +251,7 @@ namespace opti_details {
     void move(unsigned int j, unsigned int i) {
       kt2(i)=kt2(j); kt2(j)=1.e26f;
       eta(i)=eta(j); eta(j)=maxfix;
-      phi(i)=phi(j); phi(j)=maxfix;
+      phi(i)=phi(j); phi(j)=-maxfix;
       NN_dist(i)=NN_dist(j);NN_dist(j)=inffix;
       NN(i)=NN(j); NN(j)=vNN.back();
       jet_index(i)= jet_index(j); jet_index(j)=vjet_index.back();
@@ -261,7 +261,7 @@ namespace opti_details {
     void reset (unsigned int j) {
       kt2(j)=1.e26f;
       eta(j)=maxfix;
-      phi(j)=maxfix;
+      phi(j)=-maxfix;
       NN_dist(j)=inffix;
       NN(j)=vNN.back();
       jet_index(j)=vjet_index.back();
