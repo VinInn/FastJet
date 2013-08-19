@@ -685,21 +685,22 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 
     auto jiB = protojets.NN(kA);
     bool paired = jiB!=NOLOC;
-    auto kB = paired ? indexNN[jiB] : NOWHERE;
-    if (!paired) ++jiB; // trick so that jiB is not NOLOC....
-  
-    unsigned int otiB = paired ? protojets.tile_index(kB) : NOWHERE;
-
-    // tiles where modified jets lies
-    int ct=1;
-    unsigned int ttc[3];
-    ttc[0]=tiA;
-    if (paired && otiB != tiA) ttc[ct++] = otiB;
-
-
 
     if likely(paired) {
-	
+
+
+      auto kB = paired ? indexNN[jiB] : NOWHERE;
+      if (!paired) ++jiB; // trick so that jiB is not NOLOC....
+  
+      unsigned int otiB = paired ? protojets.tile_index(kB) : NOWHERE;
+
+      // tiles where modified jets lies
+      int ct=2;
+      unsigned int ttc[3];
+      ttc[ct]=tiA;
+      if (paired && otiB != tiA) ttc[--ct] = otiB;
+
+
       //assert(kB!=NOWHERE);
       //assert(otiB!=NOWHERE);
       //assert(jiB!=NOWHERE);
@@ -723,10 +724,11 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       if (tin==otiB) { // in place at kB
 	inplace=true;
       } else if (tin==tiA) { // in place at kA
-	std::swap(kA,kB); tiA = protojets.tile_index(kA); jiA = protojets.jet_index(kA);  jiB = protojets.jet_index(kB); 
+	std::swap(kA,kB); tiA = protojets.tile_index(kA); jiA = protojets.jet_index(kA);  jiB = protojets.jet_index(kB);
+        std::swap(ttc[2],ttc[1]); assert(ct==1); 
 	inplace=true;
       } else {  // in a different tile (if there is space!)
-	ttc[ct++] = tin;  // a new tile!
+	ttc[--ct] = tin;  // a new tile!
 	
 	if (mtls[tin]==tiles.last[tin]) {
 	  std::cout << "FAILED " << tin << " " << mtls[tin] 
@@ -786,17 +788,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
      // indicate that we'll have to update jetB in the minheap
      jets_for_minheap.push_back(kB);
    
-    } else {
- 
-     // jet-beam recombination
-      // std::cout << "jet-beam " << kA << std::endl;
-      // get the hist_index
-      _do_iB_recombination_step(jiA, diJ_min);
-      // _bj_remove_from_tiles(jetA);
-      removeFromTile(kA);
-    }
     
     // at this point jetA DOES NOT EXISTS ANYMORE!
+    // jetB is new
 
     // verify();
 
@@ -805,8 +799,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     // other particles.
     // Run over all tiles in our union 
     
-
-    for (int it=0; it!=ct; ++it) {
+    bool btile=true; 
+    for (int it=ct; it!=3; ++it) {  // kB is in ct....
       auto row=  ttc[it] - tiles.rsize-1;
       for (int r=0;r!=3;++r) {  // rows
 	for (auto kk = row; kk!=row+3; ++kk) { // columns
@@ -877,10 +871,11 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
                 mod=true;		
 	      } // end JetI NN recomputation
 	    
+            if (btile) {
 	    // check whether new jetB is closer than jetI's current NN and
 	    // if jetI is closer than jetB's current (evolving) nearest
 	    // neighbour. Where relevant update things
-	    if likely(paired &!isB) {
+	    if likely(!isB) {
 		auto dist = protojets.dist(iI,kB);
 		if unlikely(dist < protojets.NN_dist(iI)) {
 		    protojets.NN_dist(iI) = dist;
@@ -892,7 +887,8 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 		  protojets.NN_dist(kB)=dist;;
 		  protojets.NN(kB) = protojets.jet_index(iI);
 		}
-	      }  // end jetB update
+	      }  // end jetB update 
+             } // btile
 
 	    if (mod) jets_for_minheap.push_back(iI);	    
 
@@ -900,10 +896,11 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	} // end kk loop
 	row+=tiles.rsize;
       } // end "row" loop
+      btile=false;
     }   // end tiles loop
 	  
     // clean tag bit
-    for (int it=0; it!=ct; ++it) {
+    for (int it=ct; it!=3; ++it) {
       auto row=  ttc[it] - tiles.rsize-1;
       for (int r=0;r!=3;++r) {
 	for (auto kk = row; kk!=row+3; ++kk) {
@@ -924,6 +921,19 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       jets_for_minheap.pop_back();
       minheap.update(iI, bj_diJ(iI));
     }
+
+  } else {
+     // jet-beam recombination
+      // std::cout << "jet-beam " << kA << std::endl;
+      // get the hist_index
+      _do_iB_recombination_step(jiA, diJ_min);
+      // _bj_remove_from_tiles(jetA);
+      removeFromTile(kA);
+    }
+
+
+
+
     n--;
     
 
