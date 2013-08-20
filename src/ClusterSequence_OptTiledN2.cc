@@ -380,8 +380,36 @@ private:
       head2 = head+nEta;
       tailN=tail-nEta;
       deta = float(nEta)/(etaMax-etaMin);
-      dphi = float(nPhi)/float(twopi);
+      dphi = float(nPhi)/twopif;
     }
+
+    OTiles(float defSize, float ietaMin, float ietaMax) : etaMin(ietaMin), etaMax(ietaMax) {
+      // make sure 1/deta and 1/dphi are not smaller than defSize...
+      assert(etaMax>etaMin);
+
+      nPhi = std::floor(twopif/defSize);
+      dphi = float(nPhi)/twopif;
+
+      nEta = std::max(2,int(std::floor((etaMax-etaMin)/defSize)));
+      deta = float(nEta)/(etaMax-etaMin);
+ 
+      assert(defSize<=1./deta);
+      assert(defSize<=1./dphi);
+
+      auto sz = (nEta+2)*(nPhi+2);
+      rsize = nEta+2;
+
+      first.resize(sz,0);
+      last.resize(sz,0);
+      tag.resize(sz,false);
+
+      goff = rsize*nPhi;
+      head = rsize+1; tail = sz-rsize-1;
+      head2 = head+nEta;
+      tailN=tail-nEta;
+ 
+    }
+
 
     unsigned int index(float eta, float phi) const {
       int ieta = 1 + std::max(0,std::min(int(nEta-1),int(floor((eta-etaMin)*deta))));
@@ -408,8 +436,9 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   using namespace opti_details;
 
   unsigned int n = _jets.size();
-  unsigned  int oriN = n;
+  unsigned int oriN = n;
 
+  auto R2fix = fp2fix(_R2);
 
   if (n==0) {
     _minheap_faster_tiled_N2_cluster();
@@ -424,19 +453,26 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     return;
   }
 
-  _initialise_tiles();
+  
+  double leta=0, meta=0;
+  for ( auto const & j : _jets) {
+    leta = std::min(leta,j.rap());
+    meta = std::min(meta,j.rap());
+  }
+  
+
+  float defaultTileSize = std::max(0.1,_Rparam);
+  constexpr double maxrap = 7.0;
+  leta = std::max(leta,-maxrap);
+  meta = std::min(meta,maxrap);
+
 
   // too few tiles to optize deltaphi...
-  if (_n_tiles_phi<5)   return _minheap_faster_tiled_N2_cluster();
-
-  auto R2fix = fp2fix(_R2);
+  if (defaultTileSize>1.5f)   return _minheap_faster_tiled_N2_cluster();
 
 
-  // OTiles tiles(_tiles_eta_min,_tiles_eta_max, _tiles_ieta_max-_tiles_ieta_min+1, _n_tiles_phi);
-  //   apparenlty deta is < _R2 for the above...
-  OTiles tiles(_tiles_eta_min,_tiles_eta_max, std::max(2,_tiles_ieta_max-_tiles_ieta_min), _n_tiles_phi);
+  OTiles tiles(defaultTileSize, leta, meta);
 
-  // std::cout << "tiles " << _tiles_eta_min << "," << _tiles_eta_max << " " << tiles.size() << " " << tiles.rsize << std::endl;
 
 
   //reserve at least one place for tile (maybe two...)
