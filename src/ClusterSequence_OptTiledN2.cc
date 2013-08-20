@@ -16,9 +16,17 @@ FASTJET_BEGIN_NAMESPACE      // defined in fastjet/internal/base.hh
 #define unlikely(x) (__builtin_expect(x, false))
 
 namespace opti_details {
+
+
+  constexpr unsigned short NOWHERE = 62001;
+  constexpr float pif=M_PI;
+  constexpr float twopif=2*pif;
+  
+#ifdef FIXPOINT 
   
   using FixPoint = signed short;
   using UFixPoint = unsigned short;
+  using LongFix = int;
 
   constexpr float fp2fix_f = 4096.f;
   constexpr float fix2fp_f = 1./4096.;
@@ -42,22 +50,57 @@ namespace opti_details {
   constexpr float fix2f(FixPoint x) { return x*fix2fp_f;}
   constexpr float fix2f(UFixPoint x) { return x*fix2fp_f;}
 
-  constexpr unsigned short NOWHERE = 62001;
-  constexpr float pif=M_PI;
-  constexpr float twopif=2*pif;
 
   // constexpr FixPoint pifix= fp2fix(M_PI);
   // constexpr FixPoint twopifix = fp2fix(2*pif);
   constexpr FixPoint pifix=  M_PI*fp2fix_d + 0.5;
   constexpr FixPoint twopifix = 2*M_PI*fp2fix_d + 0.5;
-  constexpr int pifixI =  M_PI*fp2fix_d + 0.5;
-  constexpr int twopifixI = 2*M_PI*fp2fix_d + 0.5;
+  constexpr LongFix pifixI =  M_PI*fp2fix_d + 0.5;
+  constexpr LongFix twopifixI = 2*M_PI*fp2fix_d + 0.5;
   
-  inline UFixPoint prod2(int x, int y) {
-    int res = x*x+y*y + 2048;
+  inline UFixPoint prod2(LongFix x, LongFix y) {
+    LongFix res = x*x+y*y + 2048;
     return res>>12;
   }
   
+#else
+
+  using FixPoint = float;
+  using UFixPoint = float;
+  using LongFix = float;
+
+
+  constexpr UFixPoint inffix = 10000.f;
+  constexpr FixPoint maxfix = 100.f;
+
+
+  // cannot be constexpr!
+  inline FixPoint fp2fix(float x) {  return x;}
+  inline FixPoint fp2fix(double x) { return x;}
+
+  inline FixPoint fp2fixS(float x) {  return x;}
+  inline FixPoint fp2fixS(double x) { return x;}
+
+
+  //  constexpr float fix2f(FixPoint x) { return x;}
+  constexpr float fix2f(UFixPoint x) { return x;}
+
+
+  // constexpr FixPoint pifix= fp2fix(M_PI);
+  // constexpr FixPoint twopifix = fp2fix(2*pif);
+  constexpr FixPoint pifix= pif;
+  constexpr FixPoint twopifix = twopif;
+  constexpr LongFix pifixI =  pif;
+  constexpr LongFix twopifixI = twopif;
+  
+  inline UFixPoint prod2(LongFix x, LongFix y) {
+    return x*x+y*y;
+  }
+
+#endif
+
+
+
   class ProtoJet {
   public:
     explicit ProtoJet(int noloc) : NN(noloc), jet_index(noloc) {}
@@ -121,8 +164,8 @@ namespace opti_details {
 
     
     UFixPoint dist(unsigned int i, unsigned int j) const {
-      int dphi = std::abs(phi(i) - phi(j));
-      int deta = eta(i) - eta(j);
+      LongFix dphi = std::abs(phi(i) - phi(j));
+      LongFix deta = eta(i) - eta(j);
       dphi =  (dphi > pifixI) ? twopifixI - dphi : dphi;
       // return dphi*dphi + deta*deta;
       return prod2(dphi,deta);
@@ -131,24 +174,24 @@ namespace opti_details {
   
     // valid if we are sure dphi < pi
     UFixPoint safeDist(unsigned int i, unsigned int j) const {
-      int dphi = phi(i) - phi(j);
-      int deta = eta(i) - eta(j);
+      LongFix dphi = phi(i) - phi(j);
+      LongFix deta = eta(i) - eta(j);
       return (i==j) ? inffix : prod2(dphi,deta);
     }
     
     
     // valid if we are sure dphi < pi and i!=j
     UFixPoint safeDist1(unsigned int i, unsigned int j) const {
-      int dphi = phi(i) - phi(j);
-      int deta = eta(i) - eta(j);
+      LongFix dphi = phi(i) - phi(j);
+      LongFix deta = eta(i) - eta(j);
       return prod2(dphi,deta);
     }
     
     
     // valid if we are sure dphi > pi
     UFixPoint safeDist2(unsigned int i, unsigned int j) const {
-      int dphi = twopifixI - std::abs(phi(i) - phi(j));
-      int deta = eta(i) - eta(j);
+      LongFix dphi = twopifixI - std::abs(phi(i) - phi(j));
+      LongFix deta = eta(i) - eta(j);
       // can never be i==j
       return prod2(dphi,deta);
     }
@@ -214,10 +257,9 @@ namespace opti_details {
     Itype & tile_index(int i) { return vtile_index[i];}
     
     
-    
     UFixPoint dist(unsigned int i, unsigned int j) const {
-      int dphi = std::abs(phi(i) - phi(j));
-      int deta = eta(i) - eta(j);
+      LongFix dphi = std::abs(phi(i) - phi(j));
+      LongFix deta = eta(i) - eta(j);
       dphi =  (dphi > pifixI) ? twopifixI - dphi : dphi;
       // return dphi*dphi + deta*deta;
       return prod2(dphi,deta);
@@ -226,24 +268,24 @@ namespace opti_details {
   
     // valid if we are sure dphi < pi
     UFixPoint safeDist(unsigned int i, unsigned int j) const {
-      int dphi = phi(i) - phi(j);
-      int deta = eta(i) - eta(j);
+      LongFix dphi = phi(i) - phi(j);
+      LongFix deta = eta(i) - eta(j);
       return (i==j) ? inffix : prod2(dphi,deta);
     }
     
     
     // valid if we are sure dphi < pi and i!=j
     UFixPoint safeDist1(unsigned int i, unsigned int j) const {
-      int dphi = phi(i) - phi(j);
-      int deta = eta(i) - eta(j);
+      LongFix dphi = phi(i) - phi(j);
+      LongFix deta = eta(i) - eta(j);
       return prod2(dphi,deta);
     }
     
     
     // valid if we are sure dphi > pi
     UFixPoint safeDist2(unsigned int i, unsigned int j) const {
-      int dphi = twopifixI - std::abs(phi(i) - phi(j));
-      int deta = eta(i) - eta(j);
+      LongFix dphi = twopifixI - std::abs(phi(i) - phi(j));
+      LongFix deta = eta(i) - eta(j);
       // can never be i==j
       return prod2(dphi,deta);
     }
