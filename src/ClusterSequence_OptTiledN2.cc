@@ -387,14 +387,23 @@ private:
       // make sure 1/deta and 1/dphi are not smaller than defSize...
       assert(etaMax>etaMin);
 
+      // phi should rap, so no optimization opssible
       nPhi = std::floor(twopif/defSize);
       dphi = float(nPhi)/twopif;
 
-      nEta = std::max(2,int(std::floor((etaMax-etaMin)/defSize)));
-      deta = float(nEta)/(etaMax-etaMin);
- 
-      assert(defSize<=1./deta);
-      assert(defSize<=1./dphi);
+      // adjust eta range to be an integral mutiple of defSize
+      auto nef = (etaMax-etaMin)/defSize;
+      auto expansion = 0.5f*defSize*(std::max(2.f,std::ceil(nef))-nef);
+      etaMin -= expansion;
+      etaMax += expansion;
+      deta = 1.f/defSize;
+      nEta = std::max(2.f,std::ceil(nef));
+
+      assert(etaMax>etaMin);
+      assert(std::abs(deta*(etaMax-etaMin)-nEta)<0.1f);
+
+      assert(defSize<=1.f/deta);
+      assert(defSize<=1.f/dphi);
 
       auto sz = (nEta+2)*(nPhi+2);
       rsize = nEta+2;
