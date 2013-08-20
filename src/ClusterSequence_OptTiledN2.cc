@@ -457,7 +457,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
   double leta=0, meta=0;
   for ( auto const & j : _jets) {
     leta = std::min(leta,j.rap());
-    meta = std::min(meta,j.rap());
+    meta = std::max(meta,j.rap());
   }
   
 
