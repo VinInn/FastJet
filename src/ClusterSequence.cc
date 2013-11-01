@@ -337,11 +337,11 @@ void ClusterSequence::_initialise_and_run_no_decant () {
     // BriefJet provides standard long.invariant kt alg.
     this->_simple_N2_cluster_BriefJet();
   } else if (_strategy == N2Tiled) {
-    _minheap_optimized_tiled_N2_cluster();
-    // this->_faster_tiled_N2_cluster();
+    // _minheap_optimized_tiled_N2_cluster();
+    this->_faster_tiled_N2_cluster();
   } else if (_strategy == N2MinHeapTiled) {
-    _minheap_optimized_tiled_N2_cluster();
-      // this->_minheap_faster_tiled_N2_cluster();
+    // _minheap_optimized_tiled_N2_cluster();
+    this->_minheap_faster_tiled_N2_cluster();
   } else if (_strategy == NlnN) {
     this->_delaunay_cluster();
   } else if (_strategy == NlnNCam) {

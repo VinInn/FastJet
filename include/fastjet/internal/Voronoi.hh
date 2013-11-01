@@ -249,8 +249,8 @@ public:
  */
 class VoronoiDiagramGenerator{
 public:
-  VoronoiDiagramGenerator();
-  ~VoronoiDiagramGenerator();
+  inline VoronoiDiagramGenerator();
+  inline ~VoronoiDiagramGenerator();
 
   inline bool generateVoronoi(std::vector<VPoint> *_parent_sites,
 		       double minX, double maxX, double minY, double maxY, 
@@ -279,7 +279,8 @@ private:
   inline Halfedge *PQfind();
   inline int PQempty();
 	
-  inline Halfedge **ELhash;
+  Halfedge **ELhash;
+
   inline Halfedge *HEcreate(), *ELleft(), *ELright(), *ELleftbnd();
   inline Halfedge *HEcreate(Edge *e,int pm);
   
@@ -380,7 +381,7 @@ private:
 };
 
 inline
-int scomp(const void *p1,const void *p2);
+int scomp(const void *p1,const void *p2)
 {
   VPoint *s1 = (VPoint*)p1, *s2=(VPoint*)p2;
   if(s1->y < s2->y) return(-1);
@@ -433,7 +434,7 @@ VoronoiDiagramGenerator::~VoronoiDiagramGenerator(){
 
 
 
-bool VoronoiDiagramGenerator::generateVoronoi(vector<VPoint> *_parent_sites,
+bool VoronoiDiagramGenerator::generateVoronoi(std::vector<VPoint> *_parent_sites,
 					      double minX, double maxX, 
 					      double minY, double maxY, 
 					      double minDist){

@@ -275,6 +275,7 @@ void ClusterSequenceVoronoiArea::_initializeVA () {
   // transfer the areas to our local structure
   //  -- first the initial ones
   _voronoi_area.reserve(2*n_particles());
+  _voronoi_area_4vector.reserve(2*n_particles());
   for (unsigned int i=0; i<n_particles(); i++) {
     _voronoi_area.push_back(_pa_calc->area(i));
     // make a stab at a 4-vector area
