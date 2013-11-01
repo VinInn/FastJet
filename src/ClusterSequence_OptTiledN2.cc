@@ -387,7 +387,7 @@ private:
       // make sure 1/deta and 1/dphi are not smaller than defSize...
       assert(etaMax>etaMin);
 
-      // phi should rap, so no optimization opssible
+      // phi should wrap, so no optimization possible
       nPhi = std::floor(twopif/defSize);
       dphi = float(nPhi)/twopif;
 
@@ -847,7 +847,7 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
       
        
       removeFromTile(kA);
-      // at this point jetA DOES NOT EXISTS ANYMORE!
+      // at this point jetA DOES NOT EXIST ANYMORE!
       
     // recompute kb...
       kB = indexNN[jiB];
@@ -909,93 +909,93 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	   // if likely(tile_ptr->nJets>0)
 	   for (auto iI = tiles.first[kk]; iI !=tiles.last[kk]; ++iI) {
 	     bool mod=false;
-            bool isB = iI==kB;
-	    //  if (protojets.tile_index[iI]>tsize) std::cout << "??? k " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << protojets.jet_index[iI] << " " << protojets.NN[iI] << std::endl;
-            // if (protojets.jet_index[iI]>_jets.size()) std::cout << "??? j " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << protojets.jet_index[iI] << " " << protojets.NN[iI] << std::endl;
-	    // see if jetI had jetA or jetB as a NN -- if so recalculate the NN
-	    if unlikely(protojets.NN(iI) == jiA || (protojets.NN(iI) == jiB)) {
-		// now go over tiles that are neighbours of I (include own tile)
-		auto ndist=R2fix;
-		auto nind = NOLOC;
-                // kk maybe a guard row!
-		auto irow = protojets.tile_index(iI) -tiles.rsize-1;
-		for (int ir=0;ir!=3;++ir) {  // rows
-		  if (irow<tiles.rsize || irow>tiles.tail) // deltaphi>pi 
-		    for (auto ii = irow; ii!=irow+3; ++ii) { // columns
-		      for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
-			auto dist = protojets.safeDist2(iI,iJ);
-			nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
-			ndist = (dist<ndist) ? dist : ndist;
-		      }
-		    }
-		  else if(ir!=1)
-		    for (auto ii = irow; ii!=irow+3; ++ii) { // columns
-		      for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
-			auto dist = protojets.safeDist1(iI,iJ);
-			nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
-			ndist = (dist<ndist) ? dist : ndist;
-		      }
-		    }
-		  else  // central row
-		    for (auto ii = irow; ii!=irow+3; ++ii) { // columns
-		      for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
-			auto dist = protojets.safeDist(iI,iJ);  // iJ can be == iI ...
-			nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
-			ndist = (dist<ndist) ? dist : ndist;
-		      }
-		    }
-		  irow+=tiles.rsize;
-		}  
-		
-		  // if (tiles.last[irow+2]-tiles.first[irow]>bsize) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
-		  // if (tiles.last[irow+2]<tiles.first[irow]) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
-		  
-		  //for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange (when minloc pattern will vectorize!): they are all contiguous in a row. not all valid
-		  //for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
-		  // auto dist = protojets.dist(iI,iJ);
-		  //	nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
-		  //	ndist = (dist<ndist) ? dist : ndist;
-		  // if (dist < protojets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
+	     bool isB = iI==kB;
+	     //  if (protojets.tile_index[iI]>tsize) std::cout << "??? k " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << protojets.jet_index[iI] << " " << protojets.NN[iI] << std::endl;
+	     // if (protojets.jet_index[iI]>_jets.size()) std::cout << "??? j " << kk << " " << iI << " " << tiles.first[kk] << " " << tiles.last[kk] << " " << protojets.jet_index[iI] << " " << protojets.NN[iI] << std::endl;
+	     // see if jetI had jetA or jetB as a NN -- if so recalculate the NN
+	     if unlikely(protojets.NN(iI) == jiA || (protojets.NN(iI) == jiB)) {
+		 // now go over tiles that are neighbours of I (include own tile)
+		 auto ndist=R2fix;
+		 auto nind = NOLOC;
+		 // kk maybe a guard row!
+		 auto irow = protojets.tile_index(iI) -tiles.rsize-1;
+		 for (int ir=0;ir!=3;++ir) {  // rows
+		   if (irow<tiles.rsize || irow>tiles.tail) // deltaphi>pi 
+		     for (auto ii = irow; ii!=irow+3; ++ii) { // columns
+		       for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
+			 auto dist = protojets.safeDist2(iI,iJ);
+			 nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
+			 ndist = (dist<ndist) ? dist : ndist;
+		       }
+		     }
+		   else if(ir!=1)
+		     for (auto ii = irow; ii!=irow+3; ++ii) { // columns
+		       for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
+			 auto dist = protojets.safeDist1(iI,iJ);
+			 nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
+			 ndist = (dist<ndist) ? dist : ndist;
+		       }
+		     }
+		   else  // central row
+		     for (auto ii = irow; ii!=irow+3; ++ii) { // columns
+		       for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) { 
+			 auto dist = protojets.safeDist(iI,iJ);  // iJ can be == iI ...
+			 nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
+			 ndist = (dist<ndist) ? dist : ndist;
+		       }
+		     }
+		   irow+=tiles.rsize;
+		 }  
+		 
+		 // if (tiles.last[irow+2]-tiles.first[irow]>bsize) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
+		 // if (tiles.last[irow+2]<tiles.first[irow]) std::cout << "irow " << irow << " " << tiles.first[irow] << " " << tiles.last[irow+2] << std::endl;
+		 
+		 //for (auto iJ = tiles.first[ii]; iJ !=tiles.last[ii]; ++iJ) {  // vectorization challange (when minloc pattern will vectorize!): they are all contiguous in a row. not all valid
+		 //for (auto iJ = tiles.first[irow]; iJ !=tiles.last[irow+2]; ++iJ) {
+		 // auto dist = protojets.dist(iI,iJ);
+		 //	nind =  (dist<ndist) ?  protojets.jet_index(iJ) : nind;
+		 //	ndist = (dist<ndist) ? dist : ndist;
+		 // if (dist < protojets.NN_dist[iI] && iJ != iI) {  // FIXME we should find a way to get dist to itself infinite!
 		  // if (protojets.jet_index[iI]>_jets.size()) std::cout << "??? d " << dist << " " << protojets.NN_dist[iI] << " " << protojets.jet_index[iJ] << std::endl;
 		  // protojets.NN_dist[iI] = dist; protojets.NN[iI] = protojets.jet_index[iJ];
 		  //}
-		
-		
-		protojets.NN_dist(iI) = ndist;
-		protojets.NN(iI)   = nind;
-		// label jetI as needing heap action...
-                mod=true;		
-	      } // end JetI NN recomputation
-	    
-            if (btile) {
-	      // check whether new jetB is closer than jetI's current NN and
-	      // if jetI is closer than jetB's current (evolving) nearest
-	      // neighbour. Where relevant update things
-	      if likely(!isB) {
-		  auto dist = protojets.dist(iI,kB);
-		  if unlikely(dist < protojets.NN_dist(iI)) {
-		      protojets.NN_dist(iI) = dist;
-		      protojets.NN(iI) = protojets.jet_index(kB);
-		      // label jetI as needing heap action...
-		      mod = true;
-		    }
-		  if (dist < protojets.NN_dist(kB)) {
-		    protojets.NN_dist(kB)=dist;;
-		    protojets.NN(kB) = protojets.jet_index(iI);
-		  }
-		}  // end jetB update 
-	    } // btile
-	    
-	    if (mod) jets_for_minheap.push_back(iI);	    
-	    
+		 
+		 
+		 protojets.NN_dist(iI) = ndist;
+		 protojets.NN(iI)   = nind;
+		 // label jetI as needing heap action...
+		 mod=true;		
+	       } // end JetI NN recomputation
+	     
+	     if (btile) {
+	       // check whether new jetB is closer than jetI's current NN and
+	       // if jetI is closer than jetB's current (evolving) nearest
+	       // neighbour. Where relevant update things
+	       if likely(!isB) {
+		   auto dist = protojets.dist(iI,kB);
+		   if unlikely(dist < protojets.NN_dist(iI)) {
+		       protojets.NN_dist(iI) = dist;
+		       protojets.NN(iI) = protojets.jet_index(kB);
+		       // label jetI as needing heap action...
+		       mod = true;
+		     }
+		   if (dist < protojets.NN_dist(kB)) {
+		     protojets.NN_dist(kB)=dist;;
+		     protojets.NN(kB) = protojets.jet_index(iI);
+		   }
+		 }  // end jetB update 
+	     } // btile
+	     
+	     if (mod) jets_for_minheap.push_back(iI);	    
+	     
 	   } // end iI loop
-	} // end kk loop
+	 } // end kk loop
 	 row+=tiles.rsize;
        } // end "row" loop
        btile=false;
      }   // end tiles loop
      
-    // clean tag bit
+     // clean tag bit
      for (int it=ct; it!=3; ++it) {
        auto row=  ttc[it] - tiles.rsize-1;
        for (int r=0;r!=3;++r) {
@@ -1004,11 +1004,11 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
 	   if (kk<tiles.head2) tiles.tag[kk+tiles.goff]=false; 
 	   if (kk>=tiles.tailN) tiles.tag[kk-tiles.goff]=false; 
 	   
-	}
+	 }
 	 row+=tiles.rsize;
        }
      }
-
+     
      // verify();
      
      // deal with jets whose minheap entry needs updating
@@ -1032,13 +1032,13 @@ void ClusterSequence::_minheap_optimized_tiled_N2_cluster() {
     }
   }
   /*
-  /// backward compatible printout....
-  auto half = oriN + (_jets.size()-oriN)/2;
-  std::cout << "jet done " << _tiles.size() << " " << oriN << " " << _jets.size()
-  << " " << _jets[oriN].rap() << "," << _jets[oriN].phi_02pi() << "," << jet_scale_for_algorithm(_jets[oriN])
-  << " " <<	_jets[half].rap() << "," << _jets[half].phi_02pi()  << "," << jet_scale_for_algorithm(_jets[half])
-  << " " << _jets[_jets.size()-1].rap() << "," << _jets[_jets.size()-1].phi_02pi() 	<< "," << jet_scale_for_algorithm(_jets[_jets.size()-1])
-  << std::endl;
+ /// backward compatible printout....
+ auto half = oriN + (_jets.size()-oriN)/2;
+ std::cout << "jet done " << _tiles.size() << " " << oriN << " " << _jets.size()
+ << " " << _jets[oriN].rap() << "," << _jets[oriN].phi_02pi() << "," << jet_scale_for_algorithm(_jets[oriN])
+ << " " <<	_jets[half].rap() << "," << _jets[half].phi_02pi()  << "," << jet_scale_for_algorithm(_jets[half])
+ << " " << _jets[_jets.size()-1].rap() << "," << _jets[_jets.size()-1].phi_02pi() 	<< "," << jet_scale_for_algorithm(_jets[_jets.size()-1])
+ << std::endl;
   */
 }
 
